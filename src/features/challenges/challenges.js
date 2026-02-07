@@ -262,4 +262,133 @@ export const CHALLENGE_DEFS = [
     targetFn: (x1) => (x1 >= 0 ? 1 : -1),
     solutionFactory: () => createLinearSolution([2.8, 0], 0, "tanh"),
   },
+  {
+    id: "offset_roofline",
+    name: "Offset Roofline",
+    formula: "0.25x₂ + max(0, x₁ + 2) - 1.6max(0, x₁ - 0.5) + 0.6max(0, x₁ - 3)",
+    difficulty: "Boss",
+    par: "1 hidden · 4 relu",
+    targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 2) - 1.6 * Math.max(0, x1 - 0.5) + 0.6 * Math.max(0, x1 - 3),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 6, weights: [0, 1] },
+          { bias: 2, weights: [1, 0] },
+          { bias: -0.5, weights: [1, 0] },
+          { bias: -3, weights: [1, 0] },
+        ],
+        outputWeights: [0.25, 1, -1.6, 0.6],
+        outputBias: -1.5,
+        outputActivation: "linear",
+      }),
+  },
+  {
+    id: "tilted_notch",
+    name: "Tilted Notch",
+    formula: "max(0, x₁ + 0.5x₂ + 1) - max(0, x₁ + 0.5x₂ - 1) - 0.5max(0, x₁ - x₂ - 1.5)",
+    difficulty: "Boss",
+    par: "1 hidden · 3 relu",
+    targetFn: (x1, x2) =>
+      Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.5 * Math.max(0, x1 - x2 - 1.5),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 1, weights: [1, 0.5] },
+          { bias: -1, weights: [1, 0.5] },
+          { bias: -1.5, weights: [1, -1] },
+        ],
+        outputWeights: [1, -1, -0.5],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
+  },
+  {
+    id: "kinked_valley",
+    name: "Kinked Valley",
+    formula: "|x₁ - 1| + 0.7|x₂ + 1.5| - 0.8max(0, x₁ + x₂ - 1)",
+    difficulty: "Boss",
+    par: "1 hidden · ~5 relu",
+    targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: -1, weights: [1, 0] },
+          { bias: 1, weights: [-1, 0] },
+          { bias: 1.5, weights: [0, 1] },
+          { bias: -1.5, weights: [0, -1] },
+          { bias: -1, weights: [1, 1] },
+        ],
+        outputWeights: [1, 1, 0.7, 0.7, -0.8],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
+  },
+  {
+    id: "offcenter_diamond_cap",
+    name: "Offcenter Diamond Cap",
+    formula: "max(0, 2.2 - |x₁ - 1.2| - 0.6|x₂ + 0.8|)",
+    difficulty: "Boss",
+    par: "1 hidden · ~4 relu + relu output",
+    targetFn: (x1, x2) => Math.max(0, 2.2 - Math.abs(x1 - 1.2) - 0.6 * Math.abs(x2 + 0.8)),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: -1.2, weights: [1, 0] },
+          { bias: 1.2, weights: [-1, 0] },
+          { bias: 0.8, weights: [0, 1] },
+          { bias: -0.8, weights: [0, -1] },
+        ],
+        outputWeights: [-1, -1, -0.6, -0.6],
+        outputBias: 2.2,
+        outputActivation: "relu",
+      }),
+  },
+  {
+    id: "diagonal_toll_booth",
+    name: "Diagonal Toll Booth",
+    formula: "max(0, x₁ - x₂ + 1.2) - max(0, x₁ - x₂ - 1.2) + 0.4max(0, x₂ + 0.5)",
+    difficulty: "Boss",
+    par: "1 hidden · 3 relu",
+    targetFn: (x1, x2) => Math.max(0, x1 - x2 + 1.2) - Math.max(0, x1 - x2 - 1.2) + 0.4 * Math.max(0, x2 + 0.5),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 1.2, weights: [1, -1] },
+          { bias: -1.2, weights: [1, -1] },
+          { bias: 0.5, weights: [0, 1] },
+        ],
+        outputWeights: [1, -1, 0.4],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
+  },
+  {
+    id: "three_axis_fold",
+    name: "Three Axis Fold",
+    formula:
+      "0.2x₁ + max(0, x₁ + x₂ - 1) - 0.9max(0, x₁ - 1.5x₂ - 0.5) + 0.7max(0, -x₁ + 0.4x₂ + 1.5)",
+    difficulty: "Boss",
+    par: "1 hidden · 4 relu",
+    hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
+    targetFn: (x1, x2) =>
+      0.2 * x1 + Math.max(0, x1 + x2 - 1) - 0.9 * Math.max(0, x1 - 1.5 * x2 - 0.5) + 0.7 * Math.max(0, -x1 + 0.4 * x2 + 1.5),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 6, weights: [1, 0] },
+          { bias: -1, weights: [1, 1] },
+          { bias: -0.5, weights: [1, -1.5] },
+          { bias: 1.5, weights: [-1, 0.4] },
+        ],
+        outputWeights: [0.2, 1, -0.9, 0.7],
+        outputBias: -1.2,
+        outputActivation: "linear",
+      }),
+  },
 ];

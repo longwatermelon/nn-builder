@@ -21,6 +21,7 @@ export const DIFFICULTY_COLORS = {
   Intermediate: "#f59e0b",
   Advanced: "#fb7185",
   Expert: "#a78bfa",
+  Boss: "#38bdf8",
 };
 
 export const btnStyle = {

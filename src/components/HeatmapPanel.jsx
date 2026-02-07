@@ -80,6 +80,7 @@ export default function HeatmapPanel({
               <div style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 2 }}>
                 {activeChallenge.formula} · {activeChallenge.difficulty} · par {activeChallenge.par}
               </div>
+              {activeChallenge.hint && <div style={{ fontSize: 12, color: COLORS.accent, marginTop: 3 }}>Hint: {activeChallenge.hint}</div>}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button

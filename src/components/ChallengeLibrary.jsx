@@ -66,6 +66,7 @@ export default function ChallengeLibrary({
 
           <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: COLORS.textMuted }}>
             <div>Par: {activeChallenge.par}</div>
+            {activeChallenge.hint && <div style={{ color: COLORS.accent }}>Hint: {activeChallenge.hint}</div>}
             <div style={{ color: solved ? COLORS.success : COLORS.textMuted, fontWeight: 600 }}>{solved ? "✓ Solved" : "Unsolved"}</div>
           </div>
 
