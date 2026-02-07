@@ -13,10 +13,6 @@ import { COLORS } from "../styles/theme";
 export default function InspectorSidebar({
   sel,
   setSel,
-  challengeComparisonActive,
-  activeChallenge,
-  scoreColor,
-  challengeScoreDisplay,
   layers,
   activations,
   preActivations,
@@ -26,62 +22,7 @@ export default function InspectorSidebar({
   isRevealingSolution,
   updateParameterDraft,
 }) {
-  if (!sel) {
-    return (
-      <div style={{ padding: 20, color: COLORS.textMuted, fontFamily: "'Sora', sans-serif", fontSize: 13 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, marginBottom: 12 }}>Neuron Inspector</div>
-        <p style={{ lineHeight: 1.6 }}>Click on any neuron in the network to inspect and edit its properties.</p>
-        {challengeComparisonActive && activeChallenge && (
-          <div
-            style={{
-              marginBottom: 14,
-              padding: 12,
-              background: COLORS.bg,
-              borderRadius: 8,
-              border: `1px solid ${COLORS.panelBorder}`,
-            }}
-          >
-            <div style={{ fontSize: 10, color: COLORS.accent, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>
-              Active Challenge
-            </div>
-            <div style={{ fontSize: 14, color: COLORS.textBright, fontWeight: 600 }}>{activeChallenge.name}</div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 2 }}>{activeChallenge.formula}</div>
-            <div style={{ marginTop: 8, fontSize: 12, color: scoreColor, fontWeight: 600 }}>
-              Match score: {challengeScoreDisplay.toFixed(2)}%
-            </div>
-          </div>
-        )}
-        <div
-          style={{
-            marginTop: 20,
-            padding: 14,
-            background: COLORS.bg,
-            borderRadius: 8,
-            border: `1px solid ${COLORS.panelBorder}`,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: COLORS.accent,
-              marginBottom: 6,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-            }}
-          >
-            Quick Tips
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 16, color: COLORS.textMuted, fontSize: 12, lineHeight: 1.8 }}>
-            <li>Click neurons to select them</li>
-            <li>Edit weights and biases below</li>
-            <li>Heatmap updates in real time</li>
-            <li>Add layers with the + button</li>
-          </ul>
-        </div>
-      </div>
-    );
-  }
+  if (!sel) return null;
 
   const { layerIdx, neuronIdx } = sel;
   const isInput = layerIdx === 0;
@@ -101,7 +42,7 @@ export default function InspectorSidebar({
     const isInvalid = draftValidityByKey[key] === false;
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: COLORS.textMuted, minWidth: 60, fontFamily: "'DM Mono', monospace" }}>{label}</span>
+        <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 52, fontFamily: "'DM Mono', monospace" }}>{label}</span>
         <input
           type="text"
           inputMode="decimal"
@@ -111,13 +52,13 @@ export default function InspectorSidebar({
           aria-invalid={isInvalid}
           style={{
             flex: 1,
-            background: COLORS.bg,
+            background: "rgba(8,12,20,0.86)",
             border: `1px solid ${isInvalid ? COLORS.negative : COLORS.panelBorder}`,
             borderRadius: 6,
-            padding: "6px 8px",
+            padding: "5px 7px",
             color: COLORS.textBright,
             fontFamily: "'DM Mono', monospace",
-            fontSize: 13,
+            fontSize: 12,
             outline: "none",
             boxShadow: isInvalid ? `0 0 0 1px ${COLORS.negativeDim}` : "none",
           }}
@@ -127,32 +68,37 @@ export default function InspectorSidebar({
   };
 
   return (
-    <div style={{ padding: 16, fontFamily: "'Sora', sans-serif", overflowY: "auto", maxHeight: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+    <div
+      style={{
+        width: "100%",
+        maxHeight: "100%",
+        overflowY: "auto",
+        padding: 10,
+        borderRadius: 10,
+        border: `1px solid ${COLORS.panelBorder}`,
+        background: "rgba(15,21,35,0.78)",
+        backdropFilter: "blur(7px)",
+        boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+        color: COLORS.text,
+        fontFamily: "'Sora', sans-serif",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
-          <div
-            style={{
-              fontSize: 10,
-              color: COLORS.accent,
-              fontWeight: 600,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-              marginBottom: 2,
-            }}
-          >
-            {layerLabel} Layer
+          <div style={{ fontSize: 10, color: COLORS.accent, fontWeight: 600, letterSpacing: 1.1, textTransform: "uppercase" }}>
+            {layerLabel} layer
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.textBright }}>Neuron {neuronLabel}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.textBright }}>Neuron {neuronLabel}</div>
         </div>
         <button
           onClick={() => setSel(null)}
           style={{
-            background: "none",
+            background: "rgba(8,12,20,0.6)",
             border: `1px solid ${COLORS.panelBorder}`,
             borderRadius: 6,
             color: COLORS.textMuted,
             cursor: "pointer",
-            padding: "4px 8px",
+            padding: "3px 7px",
             fontSize: 11,
           }}
         >
@@ -162,27 +108,27 @@ export default function InspectorSidebar({
 
       <div
         style={{
-          background: COLORS.bg,
+          background: "rgba(8,12,20,0.72)",
           borderRadius: 8,
-          padding: 12,
-          marginBottom: 14,
+          padding: 9,
+          marginBottom: 10,
           border: `1px solid ${COLORS.panelBorder}`,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: COLORS.textMuted }}>{isInput ? "Value" : "Activation"}</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.textBright, fontFamily: "'DM Mono', monospace" }}>{fmt(act)}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+          <span style={{ fontSize: 10, color: COLORS.textMuted }}>{isInput ? "Value" : "Activation"}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textBright, fontFamily: "'DM Mono', monospace" }}>{fmt(act)}</span>
         </div>
         {!isInput && (
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 11, color: COLORS.textMuted }}>Pre-activation</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace" }}>{fmt(pre)}</span>
+            <span style={{ fontSize: 10, color: COLORS.textMuted }}>Pre-activation</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace" }}>{fmt(pre)}</span>
           </div>
         )}
         {!isInput && (
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-            <span style={{ fontSize: 11, color: COLORS.textMuted }}>Activation fn</span>
-            <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.accent, fontFamily: "'DM Mono', monospace" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+            <span style={{ fontSize: 10, color: COLORS.textMuted }}>Activation fn</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, fontFamily: "'DM Mono', monospace" }}>
               {ACT_FNS[layers[layerIdx].activation].label}
             </span>
           </div>
@@ -190,8 +136,8 @@ export default function InspectorSidebar({
       </div>
 
       {isInput && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8, fontWeight: 500, letterSpacing: 0.5 }}>INPUT VALUE</div>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INPUT VALUE</div>
           {numberInput(inputFieldKey(neuronIdx), inputValues[neuronIdx], neuronLabel)}
           <input
             type="range"
@@ -201,14 +147,14 @@ export default function InspectorSidebar({
             value={clamp(getFieldNumericValue(inputFieldKey(neuronIdx), inputValues[neuronIdx]), -5, 5)}
             onChange={(e) => updateParameterDraft(inputFieldKey(neuronIdx), e.target.value)}
             disabled={isRevealingSolution}
-            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 4 }}
+            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 2 }}
           />
         </div>
       )}
 
       {!isInput && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8, fontWeight: 500, letterSpacing: 0.5 }}>BIAS</div>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>BIAS</div>
           {numberInput(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias, "b")}
           <input
             type="range"
@@ -218,14 +164,14 @@ export default function InspectorSidebar({
             value={clamp(getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias), -5, 5)}
             onChange={(e) => updateParameterDraft(biasFieldKey(layerIdx, neuronIdx), e.target.value)}
             disabled={isRevealingSolution}
-            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 2 }}
+            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 1 }}
           />
         </div>
       )}
 
       {!isInput && (
         <div>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8, fontWeight: 500, letterSpacing: 0.5 }}>INCOMING WEIGHTS</div>
+          <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INCOMING WEIGHTS</div>
           {layers[layerIdx].neurons[neuronIdx].weights.map((w, wi) => {
             const prevLabel = layerIdx === 1 ? (wi === 0 ? "x₁" : wi === 1 ? "x₂" : `x${wi + 1}`) : `h${layerIdx - 1}n${wi + 1}`;
             const key = weightFieldKey(layerIdx, neuronIdx, wi);
@@ -245,7 +191,7 @@ export default function InspectorSidebar({
                     width: "100%",
                     accentColor: sliderValue >= 0 ? COLORS.accent : COLORS.negative,
                     marginTop: -2,
-                    marginBottom: 6,
+                    marginBottom: 5,
                   }}
                 />
               </div>

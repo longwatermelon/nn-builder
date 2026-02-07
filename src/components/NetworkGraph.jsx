@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ACT_FNS, fmt, neuronColor } from "../lib/networkMath";
+import InspectorSidebar from "./InspectorSidebar";
 import { COLORS } from "../styles/theme";
 
 const SVG_W = 560;
@@ -7,12 +8,28 @@ const PAD_X = 60;
 const PAD_Y = 30;
 const NEURON_R = 22;
 
-export default function NetworkGraph({ layers, layerSizes, activations, sel, setSel }) {
+export default function NetworkGraph({
+  layers,
+  layerSizes,
+  activations,
+  preActivations,
+  sel,
+  setSel,
+  parameterDrafts,
+  inputValues,
+  draftValidityByKey,
+  isRevealingSolution,
+  updateParameterDraft,
+}) {
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
+  const [inspectorPosition, setInspectorPosition] = useState(null);
 
   const dragStartY = useRef(0);
   const dragStartH = useRef(0);
+  const graphViewportRef = useRef(null);
+  const svgRef = useRef(null);
+  const inspectorRef = useRef(null);
 
   const SVG_H = netHeight;
 
@@ -33,6 +50,90 @@ export default function NetworkGraph({ layers, layerSizes, activations, sel, set
     }
     return positions;
   }, [layers.length, layerSizes, SVG_H]);
+
+  const selectedNeuronPosition = useMemo(() => {
+    if (!sel) return null;
+    return neuronPositions[sel.layerIdx]?.[sel.neuronIdx] ?? null;
+  }, [sel, neuronPositions]);
+
+  const positionInspector = useCallback(() => {
+    if (!sel || !selectedNeuronPosition || !graphViewportRef.current || !inspectorRef.current || !svgRef.current) {
+      setInspectorPosition(null);
+      return;
+    }
+
+    const viewportRect = graphViewportRef.current.getBoundingClientRect();
+    const inspectorRect = inspectorRef.current.getBoundingClientRect();
+    const svgNode = svgRef.current;
+    const ctm = svgNode.getScreenCTM();
+    if (!ctm) {
+      setInspectorPosition(null);
+      return;
+    }
+
+    const centerPoint = svgNode.createSVGPoint();
+    centerPoint.x = selectedNeuronPosition.x;
+    centerPoint.y = selectedNeuronPosition.y;
+    const centerScreenPoint = centerPoint.matrixTransform(ctm);
+
+    const radiusXPoint = svgNode.createSVGPoint();
+    radiusXPoint.x = selectedNeuronPosition.x + NEURON_R;
+    radiusXPoint.y = selectedNeuronPosition.y;
+    const radiusXScreenPoint = radiusXPoint.matrixTransform(ctm);
+
+    const radiusYPoint = svgNode.createSVGPoint();
+    radiusYPoint.x = selectedNeuronPosition.x;
+    radiusYPoint.y = selectedNeuronPosition.y + NEURON_R;
+    const radiusYScreenPoint = radiusYPoint.matrixTransform(ctm);
+
+    const neuronX = centerScreenPoint.x - viewportRect.left;
+    const neuronY = centerScreenPoint.y - viewportRect.top;
+    const neuronRadiusX = Math.abs(radiusXScreenPoint.x - centerScreenPoint.x) || NEURON_R;
+    const neuronRadiusY = Math.abs(radiusYScreenPoint.y - centerScreenPoint.y) || NEURON_R;
+    const edgePad = 8;
+    const sideGap = 10;
+
+    let left = neuronX + neuronRadiusX + sideGap;
+    if (left + inspectorRect.width > viewportRect.width - edgePad) {
+      left = neuronX - inspectorRect.width - neuronRadiusX - sideGap;
+    }
+    left = Math.max(edgePad, Math.min(viewportRect.width - inspectorRect.width - edgePad, left));
+
+    let top = neuronY - (neuronRadiusY - 4);
+    top = Math.max(edgePad, Math.min(viewportRect.height - inspectorRect.height - edgePad, top));
+
+    setInspectorPosition((prev) => {
+      if (prev && Math.abs(prev.left - left) < 0.5 && Math.abs(prev.top - top) < 0.5) return prev;
+      return { left, top };
+    });
+  }, [sel, selectedNeuronPosition]);
+
+  useLayoutEffect(() => {
+    if (!sel || !selectedNeuronPosition) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    positionInspector();
+  }, [sel, selectedNeuronPosition, netHeight, positionInspector]);
+
+  useEffect(() => {
+    if (!sel) return;
+    const onResize = () => positionInspector();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [sel, positionInspector]);
+
+  useEffect(() => {
+    if (!sel || !graphViewportRef.current || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => positionInspector());
+    observer.observe(graphViewportRef.current);
+    return () => observer.disconnect();
+  }, [sel, positionInspector]);
+
+  useEffect(() => {
+    if (!sel || !inspectorRef.current || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => positionInspector());
+    observer.observe(inspectorRef.current);
+    return () => observer.disconnect();
+  }, [sel, positionInspector]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -64,127 +165,159 @@ export default function NetworkGraph({ layers, layerSizes, activations, sel, set
         flexShrink: 0,
       }}
     >
-      <svg
-        width={SVG_W}
-        height={SVG_H}
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        style={{ width: "100%", height: netHeight, display: "block", userSelect: dragging ? "none" : undefined }}
-      >
-        <defs>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        {layers.map((layer, li) => {
-          if (li === 0) return null;
-          const prevPositions = neuronPositions[li - 1];
-          const curPositions = neuronPositions[li];
-          return layer.neurons.map((neuron, ni) =>
-            neuron.weights.map((w, wi) => {
-              const from = prevPositions[wi];
-              const to = curPositions[ni];
-              if (!from || !to) return null;
-              const absW = Math.abs(w);
-              const opacity = Math.min(0.15 + absW * 0.3, 0.9);
-              const strokeW = Math.max(0.5, Math.min(absW * 2, 4));
-              const color = w >= 0 ? COLORS.accent : COLORS.negative;
+      <div ref={graphViewportRef} style={{ position: "relative", width: "100%", height: netHeight }}>
+        <svg
+          ref={svgRef}
+          width={SVG_W}
+          height={SVG_H}
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+          style={{ width: "100%", height: "100%", display: "block", userSelect: dragging ? "none" : undefined }}
+        >
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          {layers.map((layer, li) => {
+            if (li === 0) return null;
+            const prevPositions = neuronPositions[li - 1];
+            const curPositions = neuronPositions[li];
+            return layer.neurons.map((neuron, ni) =>
+              neuron.weights.map((w, wi) => {
+                const from = prevPositions[wi];
+                const to = curPositions[ni];
+                if (!from || !to) return null;
+                const absW = Math.abs(w);
+                const opacity = Math.min(0.15 + absW * 0.3, 0.9);
+                const strokeW = Math.max(0.5, Math.min(absW * 2, 4));
+                const color = w >= 0 ? COLORS.accent : COLORS.negative;
+                const isSel = sel && sel.layerIdx === li && sel.neuronIdx === ni;
+                return (
+                  <line
+                    key={`${li}-${ni}-${wi}`}
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke={color}
+                    strokeWidth={isSel ? strokeW + 1 : strokeW}
+                    opacity={isSel ? Math.min(opacity + 0.3, 1) : opacity}
+                    strokeLinecap="round"
+                  />
+                );
+              })
+            );
+          })}
+          {neuronPositions.map((layerPositions, li) =>
+            layerPositions.map((pos, ni) => {
+              const isInput = li === 0;
+              const isOutput = li === layers.length - 1;
+              const actVal = activations[li]?.[ni] ?? 0;
               const isSel = sel && sel.layerIdx === li && sel.neuronIdx === ni;
+              const fillColor = neuronColor(actVal, 0.7);
+              const strokeColor = isSel
+                ? COLORS.selected
+                : isInput
+                  ? COLORS.inputNeuron
+                  : isOutput
+                    ? COLORS.outputNeuron
+                    : "#3a4f70";
               return (
-                <line
-                  key={`${li}-${ni}-${wi}`}
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
-                  stroke={color}
-                  strokeWidth={isSel ? strokeW + 1 : strokeW}
-                  opacity={isSel ? Math.min(opacity + 0.3, 1) : opacity}
-                  strokeLinecap="round"
-                />
+                <g key={`${li}-${ni}`} onClick={() => setSel({ layerIdx: li, neuronIdx: ni })} style={{ cursor: "pointer" }}>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={NEURON_R + (isSel ? 3 : 0)}
+                    fill={fillColor}
+                    stroke={strokeColor}
+                    strokeWidth={isSel ? 2.5 : 1.5}
+                    filter={isSel ? "url(#glow)" : undefined}
+                  />
+                  <text
+                    x={pos.x}
+                    y={pos.y + 1}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill={COLORS.textBright}
+                    fontSize="10"
+                    fontFamily="'DM Mono', monospace"
+                    fontWeight="500"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {fmt(actVal)}
+                  </text>
+                  <text
+                    x={pos.x}
+                    y={pos.y - NEURON_R - 6}
+                    textAnchor="middle"
+                    fill={COLORS.textMuted}
+                    fontSize="9"
+                    fontFamily="'Sora', sans-serif"
+                    fontWeight="500"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {isInput ? (ni === 0 ? "x₁" : "x₂") : isOutput ? "out" : `h${li}.${ni + 1}`}
+                  </text>
+                </g>
               );
             })
-          );
-        })}
-        {neuronPositions.map((layerPositions, li) =>
-          layerPositions.map((pos, ni) => {
+          )}
+          {layers.map((layer, li) => {
+            const x = neuronPositions[li]?.[0]?.x ?? 0;
             const isInput = li === 0;
             const isOutput = li === layers.length - 1;
-            const actVal = activations[li]?.[ni] ?? 0;
-            const isSel = sel && sel.layerIdx === li && sel.neuronIdx === ni;
-            const fillColor = neuronColor(actVal, 0.7);
-            const strokeColor = isSel
-              ? COLORS.selected
-              : isInput
-                ? COLORS.inputNeuron
-                : isOutput
-                  ? COLORS.outputNeuron
-                  : "#3a4f70";
+            const label = isInput ? "Input" : isOutput ? "Output" : `Hidden ${li}`;
             return (
-              <g key={`${li}-${ni}`} onClick={() => setSel({ layerIdx: li, neuronIdx: ni })} style={{ cursor: "pointer" }}>
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={NEURON_R + (isSel ? 3 : 0)}
-                  fill={fillColor}
-                  stroke={strokeColor}
-                  strokeWidth={isSel ? 2.5 : 1.5}
-                  filter={isSel ? "url(#glow)" : undefined}
-                />
-                <text
-                  x={pos.x}
-                  y={pos.y + 1}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill={COLORS.textBright}
-                  fontSize="10"
-                  fontFamily="'DM Mono', monospace"
-                  fontWeight="500"
-                  style={{ pointerEvents: "none" }}
-                >
-                  {fmt(actVal)}
-                </text>
-                <text
-                  x={pos.x}
-                  y={pos.y - NEURON_R - 6}
-                  textAnchor="middle"
-                  fill={COLORS.textMuted}
-                  fontSize="9"
-                  fontFamily="'Sora', sans-serif"
-                  fontWeight="500"
-                  style={{ pointerEvents: "none" }}
-                >
-                  {isInput ? (ni === 0 ? "x₁" : "x₂") : isOutput ? "out" : `h${li}.${ni + 1}`}
-                </text>
-              </g>
+              <text
+                key={`lbl-${li}`}
+                x={x}
+                y={SVG_H - 6}
+                textAnchor="middle"
+                fill={COLORS.textMuted}
+                fontSize="9"
+                fontFamily="'Sora', sans-serif"
+                fontWeight="500"
+              >
+                {label}
+                {!isInput ? ` · ${ACT_FNS[layer.activation].abbr}` : ""}
+              </text>
             );
-          })
+          })}
+        </svg>
+
+        {sel && (
+          <div
+            ref={inspectorRef}
+            style={{
+              position: "absolute",
+              left: inspectorPosition ? inspectorPosition.left : 0,
+              top: inspectorPosition ? inspectorPosition.top : 0,
+              width: "min(270px, calc(100% - 16px))",
+              maxHeight: "calc(100% - 16px)",
+              visibility: inspectorPosition ? "visible" : "hidden",
+              pointerEvents: inspectorPosition ? "auto" : "none",
+              zIndex: 6,
+            }}
+          >
+            <InspectorSidebar
+              sel={sel}
+              setSel={setSel}
+              layers={layers}
+              activations={activations}
+              preActivations={preActivations}
+              parameterDrafts={parameterDrafts}
+              inputValues={inputValues}
+              draftValidityByKey={draftValidityByKey}
+              isRevealingSolution={isRevealingSolution}
+              updateParameterDraft={updateParameterDraft}
+            />
+          </div>
         )}
-        {layers.map((layer, li) => {
-          const x = neuronPositions[li]?.[0]?.x ?? 0;
-          const isInput = li === 0;
-          const isOutput = li === layers.length - 1;
-          const label = isInput ? "Input" : isOutput ? "Output" : `Hidden ${li}`;
-          return (
-            <text
-              key={`lbl-${li}`}
-              x={x}
-              y={SVG_H - 6}
-              textAnchor="middle"
-              fill={COLORS.textMuted}
-              fontSize="9"
-              fontFamily="'Sora', sans-serif"
-              fontWeight="500"
-            >
-              {label}
-              {!isInput ? ` · ${ACT_FNS[layer.activation].abbr}` : ""}
-            </text>
-          );
-        })}
-      </svg>
+      </div>
       <div
         onMouseDown={(e) => {
           e.preventDefault();

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import ChallengeLibrary from "./components/ChallengeLibrary";
 import HeatmapPanel from "./components/HeatmapPanel";
-import InspectorSidebar from "./components/InspectorSidebar";
 import NetworkGraph from "./components/NetworkGraph";
 import { CHALLENGE_DEFS } from "./features/challenges/challenges";
 import { getScoreColor, getScoreLabel } from "./features/challenges/score";
@@ -37,8 +36,6 @@ export default function App() {
   });
   const [sel, setSel] = useState(null);
 
-  const [isChallengeMode, setIsChallengeMode] = useState(false);
-  const [showChallengePicker, setShowChallengePicker] = useState(false);
   const [selectedChallengeId, setSelectedChallengeId] = useState(null);
   const [savedAttempt, setSavedAttempt] = useState(null);
   const [revealSolvedLockId, setRevealSolvedLockId] = useState(null);
@@ -89,7 +86,7 @@ export default function App() {
     () => challengeCatalog.find((c) => c.id === selectedChallengeId) ?? null,
     [challengeCatalog, selectedChallengeId]
   );
-  const challengeComparisonActive = Boolean(isChallengeMode && activeChallenge && !showChallengePicker);
+  const challengeComparisonActive = Boolean(activeChallenge);
 
   const draftValidity = useMemo(() => {
     const canonicalDrafts = buildParameterDrafts(layers, inputValues);
@@ -126,13 +123,13 @@ export default function App() {
   }, [challengeComparisonActive, activeChallenge, networkGrid.min, networkGrid.max]);
 
   const challengeScore = useMemo(() => {
-    if (!isChallengeMode || !activeChallenge) return 0;
+    if (!activeChallenge) return 0;
     const mse = computeMSE(networkGrid.values, activeChallenge.targetGrid.values);
     const variance = activeChallenge.targetGrid.variance;
     if (variance <= 1e-12) return mse <= 1e-12 ? 100 : 0;
     const r2 = Math.max(0, 1 - mse / variance);
     return clamp(r2 * 100, 0, 100);
-  }, [isChallengeMode, activeChallenge, networkGrid.values]);
+  }, [activeChallenge, networkGrid.values]);
 
   const challengeScoreDisplay = Math.floor(challengeScore * 100) / 100;
   const scoreLabel = getScoreLabel(challengeScore);
@@ -233,52 +230,37 @@ export default function App() {
     [cancelRevealAnimation]
   );
 
-  const handleToggleChallengeMode = () => {
-    if (isChallengeMode) {
-      cancelRevealAnimation();
-      if (isSolutionRevealed && activeChallenge && savedAttempt && savedAttempt.challengeId === activeChallenge.id) {
-        setLayers(cloneLayers(savedAttempt.layers));
-        setInputValues([...savedAttempt.inputValues]);
-        setSel(savedAttempt.sel ? { ...savedAttempt.sel } : null);
-      }
-      setIsChallengeMode(false);
-      setShowChallengePicker(false);
-      setIsRevealingSolution(false);
-      setIsSolutionRevealed(false);
-      setRevealSolvedLockId(null);
-      setSavedAttempt(null);
-      setIsMatchCelebrating(false);
-      prevChallengeScoreRef.current = 0;
-    } else {
-      setIsChallengeMode(true);
-      setShowChallengePicker(true);
-      setIsMatchCelebrating(false);
-      prevChallengeScoreRef.current = 0;
-    }
-  };
-
   const handleSelectChallenge = (challengeId) => {
     cancelRevealAnimation();
-    const isSwitchingChallenge = challengeId !== activeChallenge?.id;
-    if (isSolutionRevealed && isSwitchingChallenge) return;
-    if (!isSwitchingChallenge && isSolutionRevealed && savedAttempt && savedAttempt.challengeId === challengeId) {
-      setLayers(cloneLayers(savedAttempt.layers));
-      setInputValues([...savedAttempt.inputValues]);
-    }
     setSelectedChallengeId(challengeId);
-    setShowChallengePicker(false);
     setIsRevealingSolution(false);
     setSavedAttempt(null);
     setIsSolutionRevealed(false);
-    setRevealSolvedLockId(null);
     setIsMatchCelebrating(false);
     prevChallengeScoreRef.current = 0;
     setSel(null);
   };
 
+  const handleExitChallenge = () => {
+    if (isRevealingSolution) return;
+    if (isSolutionRevealed && activeChallenge && savedAttempt && savedAttempt.challengeId === activeChallenge.id) {
+      const confirmed = window.confirm(
+        "Exit challenge? You'll keep the current network, but the restore controls will close once you leave this challenge."
+      );
+      if (!confirmed) return;
+    }
+    cancelRevealAnimation();
+    setSelectedChallengeId(null);
+    setIsRevealingSolution(false);
+    setIsSolutionRevealed(false);
+    setSavedAttempt(null);
+    setIsMatchCelebrating(false);
+    prevChallengeScoreRef.current = 0;
+  };
+
   const handleShowSolution = () => {
     if (!activeChallenge || isRevealingSolution || isSolutionRevealed) return;
-    const confirmed = window.confirm("Reveal a solution? Your current weights will be saved so you can return to them.");
+    const confirmed = window.confirm("Reveal a solution? Your current weights will be saved so you can restore them while this challenge is active.");
     if (!confirmed) return;
 
     cancelRevealAnimation();
@@ -343,7 +325,6 @@ export default function App() {
     prevChallengeScoreRef.current = 0;
     setSavedAttempt(null);
     setSelectedChallengeId(null);
-    setShowChallengePicker(true);
     setSel(null);
   };
 
@@ -499,8 +480,6 @@ export default function App() {
     setSel(null);
   };
 
-  const shouldShowChallengeLibrary = isChallengeMode && (showChallengePicker || !activeChallenge);
-
   return (
     <div
       style={{
@@ -541,7 +520,7 @@ export default function App() {
             {layers.length - 2} hidden {layers.length - 2 === 1 ? "layer" : "layers"} ·{" "}
             {layers.reduce((sum, layer, i) => sum + (i === 0 ? layer.neuronCount : layer.neurons.length), 0)} neurons
           </span>
-          {isChallengeMode && (
+          {activeChallenge && (
             <span
               style={{
                 fontSize: 11,
@@ -552,7 +531,7 @@ export default function App() {
                 borderRadius: 4,
               }}
             >
-              {activeChallenge ? `Challenge: ${activeChallenge.name}` : "Challenge mode"}
+              {`Challenge: ${activeChallenge.name}`}
             </span>
           )}
           {!draftValidity.allValid && (
@@ -571,21 +550,6 @@ export default function App() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <button
-            onClick={handleToggleChallengeMode}
-            style={isChallengeMode ? { ...btnStyle, borderColor: `${COLORS.accent}60`, color: COLORS.accent, background: COLORS.accentDim } : btnStyle}
-          >
-            {isChallengeMode ? "Free Play" : "Challenge"}
-          </button>
-          {isChallengeMode && (
-            <button
-              onClick={() => setShowChallengePicker(true)}
-              disabled={isSolutionRevealed}
-              style={{ ...btnStyle, borderColor: `${COLORS.accent}40`, color: COLORS.accent }}
-            >
-              {activeChallenge ? "Challenge List" : "Pick Challenge"}
-            </button>
-          )}
           <button onClick={randomizeAll} style={btnStyle}>
             ⟳ Randomize
           </button>
@@ -605,33 +569,15 @@ export default function App() {
             overflowY: "auto",
           }}
         >
-          {shouldShowChallengeLibrary ? (
-            <ChallengeLibrary
-              challengeCatalog={challengeCatalog}
-              solvedChallenges={solvedChallenges}
-              activeChallenge={activeChallenge}
-              isSolutionRevealed={isSolutionRevealed}
-              handleSelectChallenge={handleSelectChallenge}
-              onBack={() => setShowChallengePicker(false)}
-            />
-          ) : (
-            <InspectorSidebar
-              sel={sel}
-              setSel={setSel}
-              challengeComparisonActive={challengeComparisonActive}
-              activeChallenge={activeChallenge}
-              scoreColor={scoreColor}
-              challengeScoreDisplay={challengeScoreDisplay}
-              layers={layers}
-              activations={activations}
-              preActivations={preActivations}
-              parameterDrafts={parameterDrafts}
-              inputValues={inputValues}
-              draftValidityByKey={draftValidity.byKey}
-              isRevealingSolution={isRevealingSolution}
-              updateParameterDraft={updateParameterDraft}
-            />
-          )}
+          <ChallengeLibrary
+            challengeCatalog={challengeCatalog}
+            solvedChallenges={solvedChallenges}
+            activeChallenge={activeChallenge}
+            isSolutionRevealed={isSolutionRevealed}
+            isRevealingSolution={isRevealingSolution}
+            handleSelectChallenge={handleSelectChallenge}
+            onExitChallenge={handleExitChallenge}
+          />
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", padding: 16, gap: 12 }}>
@@ -752,12 +698,23 @@ export default function App() {
             </button>
           </div>
 
-          <NetworkGraph layers={layers} layerSizes={layerSizes} activations={activations} sel={sel} setSel={setSel} />
+          <NetworkGraph
+            layers={layers}
+            layerSizes={layerSizes}
+            activations={activations}
+            preActivations={preActivations}
+            sel={sel}
+            setSel={setSel}
+            parameterDrafts={parameterDrafts}
+            inputValues={inputValues}
+            draftValidityByKey={draftValidity.byKey}
+            isRevealingSolution={isRevealingSolution}
+            updateParameterDraft={updateParameterDraft}
+          />
 
           <HeatmapPanel
             challengeComparisonActive={challengeComparisonActive}
             activeChallenge={activeChallenge}
-            isChallengeMode={isChallengeMode}
             isRevealingSolution={isRevealingSolution}
             isSolutionRevealed={isSolutionRevealed}
             challengeScore={challengeScore}
@@ -768,7 +725,6 @@ export default function App() {
             canRestoreAttempt={canRestoreAttempt}
             networkGrid={networkGrid}
             heatmapScale={heatmapScale}
-            onOpenChallengeList={() => setShowChallengePicker(true)}
             handleShowSolution={handleShowSolution}
             handleRestoreAttempt={handleRestoreAttempt}
             handleTryAnother={handleTryAnother}

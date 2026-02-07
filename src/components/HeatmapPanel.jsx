@@ -5,7 +5,6 @@ import { COLORS, subtleBtnStyle } from "../styles/theme";
 export default function HeatmapPanel({
   challengeComparisonActive,
   activeChallenge,
-  isChallengeMode,
   isRevealingSolution,
   isSolutionRevealed,
   challengeScore,
@@ -16,7 +15,6 @@ export default function HeatmapPanel({
   canRestoreAttempt,
   networkGrid,
   heatmapScale,
-  onOpenChallengeList,
   handleShowSolution,
   handleRestoreAttempt,
   handleTryAnother,
@@ -84,17 +82,6 @@ export default function HeatmapPanel({
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={onOpenChallengeList}
-                disabled={isSolutionRevealed}
-                style={{
-                  ...subtleBtnStyle,
-                  opacity: isSolutionRevealed ? 0.6 : 1,
-                  cursor: isSolutionRevealed ? "default" : "pointer",
-                }}
-              >
-                Challenge List
-              </button>
               <button
                 onClick={handleShowSolution}
                 disabled={isRevealingSolution || isSolutionRevealed}
@@ -243,13 +230,6 @@ export default function HeatmapPanel({
 
       {!challengeComparisonActive && (
         <>
-          {isChallengeMode && (
-            <div style={{ fontSize: 12, color: COLORS.textMuted }}>
-              {activeChallenge
-                ? "Challenge list is open in the sidebar. Pick any challenge to continue."
-                : "Choose a challenge from the sidebar to start matching a target function."}
-            </div>
-          )}
           <canvas
             ref={userCanvasRef}
             width={400}

@@ -16,8 +16,8 @@ This project is a website for students to practice their intuition on hand-craft
   - `src/features/challenges/challenges.js` - Challenge catalog and canonical solution factories.
   - `src/features/challenges/score.js` - Challenge match-score labels and gradient color mapping.
   - `src/components/ChallengeThumbnail.jsx` - Small canvas preview for challenge cards.
-  - `src/components/ChallengeLibrary.jsx` - Sidebar challenge picker and challenge card list UI.
-  - `src/components/InspectorSidebar.jsx` - Neuron inspector UI for editing inputs, biases, and weights.
+  - `src/components/ChallengeLibrary.jsx` - Sidebar challenge UI that swaps between challenge list and active challenge details.
+  - `src/components/InspectorSidebar.jsx` - Floating neuron inspector menu for editing selected neuron inputs, biases, and weights.
   - `src/components/NetworkGraph.jsx` - SVG network graph renderer with draggable height handle.
   - `src/components/HeatmapPanel.jsx` - Output/challenge comparison heatmap panel and challenge action controls.
 
