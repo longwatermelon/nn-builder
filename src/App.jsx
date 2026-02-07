@@ -87,8 +87,31 @@ export default function App() {
   const [layers, setLayers] = useState(createInitialNetwork);
   const [inputValues, setInputValues] = useState([0.5, 0.5]);
   const [sel, setSel] = useState(null);
+  const [netHeight, setNetHeight] = useState(340);
+  const [dragging, setDragging] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartH = useRef(0);
   const canvasRef = useRef(null);
   const svgRef = useRef(null);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      const dy = (e.clientY || e.touches?.[0]?.clientY || 0) - dragStartY.current;
+      setNetHeight(Math.max(200, Math.min(800, dragStartH.current + dy)));
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [dragging]);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -308,7 +331,8 @@ export default function App() {
   };
 
   // SVG layout
-  const SVG_W = 560, SVG_H = 340;
+  const SVG_W = 560;
+  const SVG_H = netHeight;
   const PAD_X = 60, PAD_Y = 30;
   const neuronR = 22;
 
@@ -328,7 +352,7 @@ export default function App() {
       positions.push(lp);
     }
     return positions;
-  }, [layers, layerSizes]);
+  }, [layers, layerSizes, netHeight]);
 
   const selNeuron = sel
     ? { layerIdx: sel.layerIdx, neuronIdx: sel.neuronIdx }
@@ -596,7 +620,7 @@ export default function App() {
             padding: 8, position: "relative", flexShrink: 0,
           }}>
             <svg ref={svgRef} width={SVG_W} height={SVG_H} viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-              style={{ width: "100%", height: "auto", maxHeight: 360, display: "block" }}>
+              style={{ width: "100%", height: netHeight, display: "block", userSelect: dragging ? "none" : undefined }}>
               <defs>
                 <filter id="glow">
                   <feGaussianBlur stdDeviation="3" result="blur" />
@@ -679,6 +703,22 @@ export default function App() {
                 );
               })}
             </svg>
+            {/* Resize handle */}
+            <div
+              onMouseDown={(e) => { e.preventDefault(); dragStartY.current = e.clientY; dragStartH.current = netHeight; setDragging(true); }}
+              onTouchStart={(e) => { dragStartY.current = e.touches[0].clientY; dragStartH.current = netHeight; setDragging(true); }}
+              style={{
+                height: 14, cursor: "ns-resize", display: "flex", alignItems: "center",
+                justifyContent: "center", borderRadius: "0 0 10px 10px", userSelect: "none",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = COLORS.surface}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <div style={{
+                width: 40, height: 3, borderRadius: 2, background: COLORS.panelBorder,
+              }} />
+            </div>
           </div>
 
           {/* Heatmap */}
