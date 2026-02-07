@@ -231,6 +231,13 @@ export default function App() {
   );
 
   const handleSelectChallenge = (challengeId) => {
+    if (isRevealingSolution || challengeId === selectedChallengeId) return;
+    if (isSolutionRevealed && activeChallenge && savedAttempt && savedAttempt.challengeId === activeChallenge.id) {
+      const confirmed = window.confirm(
+        "Switch challenge? You'll keep the current network, but the restore controls for this challenge will be cleared."
+      );
+      if (!confirmed) return;
+    }
     cancelRevealAnimation();
     setSelectedChallengeId(challengeId);
     setIsRevealingSolution(false);
@@ -239,23 +246,6 @@ export default function App() {
     setIsMatchCelebrating(false);
     prevChallengeScoreRef.current = 0;
     setSel(null);
-  };
-
-  const handleExitChallenge = () => {
-    if (isRevealingSolution) return;
-    if (isSolutionRevealed && activeChallenge && savedAttempt && savedAttempt.challengeId === activeChallenge.id) {
-      const confirmed = window.confirm(
-        "Exit challenge? You'll keep the current network, but the restore controls will close once you leave this challenge."
-      );
-      if (!confirmed) return;
-    }
-    cancelRevealAnimation();
-    setSelectedChallengeId(null);
-    setIsRevealingSolution(false);
-    setIsSolutionRevealed(false);
-    setSavedAttempt(null);
-    setIsMatchCelebrating(false);
-    prevChallengeScoreRef.current = 0;
   };
 
   const handleShowSolution = () => {
@@ -573,10 +563,8 @@ export default function App() {
             challengeCatalog={challengeCatalog}
             solvedChallenges={solvedChallenges}
             activeChallenge={activeChallenge}
-            isSolutionRevealed={isSolutionRevealed}
             isRevealingSolution={isRevealingSolution}
             handleSelectChallenge={handleSelectChallenge}
-            onExitChallenge={handleExitChallenge}
           />
         </div>
 

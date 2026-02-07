@@ -1,95 +1,14 @@
 import ChallengeThumbnail from "./ChallengeThumbnail";
-import { COLORS, DIFFICULTY_COLORS, subtleBtnStyle } from "../styles/theme";
+import { COLORS, DIFFICULTY_COLORS } from "../styles/theme";
 
 export default function ChallengeLibrary({
   challengeCatalog,
   solvedChallenges,
   activeChallenge,
-  isSolutionRevealed,
   isRevealingSolution,
   handleSelectChallenge,
-  onExitChallenge,
 }) {
-  if (activeChallenge) {
-    const solved = Boolean(solvedChallenges[activeChallenge.id]);
-    return (
-      <div style={{ padding: 14, fontFamily: "'Sora', sans-serif", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textBright }}>Active Challenge</div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>Adjust your network to match the target.</div>
-          </div>
-          <button
-            onClick={onExitChallenge}
-            disabled={isRevealingSolution}
-            style={{
-              ...subtleBtnStyle,
-              opacity: isRevealingSolution ? 0.6 : 1,
-              cursor: isRevealingSolution ? "default" : "pointer",
-            }}
-          >
-            Exit challenge
-          </button>
-        </div>
-
-        <div
-          style={{
-            background: COLORS.surface,
-            border: `1px solid ${COLORS.panelBorder}`,
-            borderRadius: 10,
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.textBright }}>{activeChallenge.name}</div>
-            <span
-              style={{
-                fontSize: 10,
-                color: DIFFICULTY_COLORS[activeChallenge.difficulty],
-                border: `1px solid ${DIFFICULTY_COLORS[activeChallenge.difficulty]}55`,
-                background: "rgba(255,255,255,0.02)",
-                borderRadius: 999,
-                padding: "2px 8px",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {activeChallenge.difficulty}
-            </span>
-          </div>
-
-          <div style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace" }}>{activeChallenge.formula}</div>
-
-          <ChallengeThumbnail values={activeChallenge.targetGrid.values} min={activeChallenge.targetGrid.min} max={activeChallenge.targetGrid.max} />
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: COLORS.textMuted }}>
-            <div>Par: {activeChallenge.par}</div>
-            {activeChallenge.hint && <div style={{ color: COLORS.accent }}>Hint: {activeChallenge.hint}</div>}
-            <div style={{ color: solved ? COLORS.success : COLORS.textMuted, fontWeight: 600 }}>{solved ? "✓ Solved" : "Unsolved"}</div>
-          </div>
-
-          {isSolutionRevealed && (
-            <div
-              style={{
-                marginTop: 2,
-                padding: 10,
-                borderRadius: 8,
-                border: `1px solid ${COLORS.accent}55`,
-                background: COLORS.accentDim,
-                fontSize: 11,
-                color: COLORS.accent,
-                lineHeight: 1.5,
-              }}
-            >
-              Solution is currently revealed for this challenge.
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const selectedChallengeId = activeChallenge?.id ?? null;
 
   return (
     <div style={{ padding: 14, fontFamily: "'Sora', sans-serif", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -103,21 +22,25 @@ export default function ChallengeLibrary({
       <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 170px)", display: "flex", flexDirection: "column", gap: 10, paddingRight: 2 }}>
         {challengeCatalog.map((challenge) => {
           const solved = Boolean(solvedChallenges[challenge.id]);
+          const isSelected = challenge.id === selectedChallengeId;
           return (
             <button
               key={challenge.id}
               onClick={() => handleSelectChallenge(challenge.id)}
+              disabled={isRevealingSolution}
               style={{
-                background: COLORS.surface,
-                border: `1px solid ${COLORS.panelBorder}`,
+                background: isSelected ? COLORS.accentDim : COLORS.surface,
+                border: `1px solid ${isSelected ? `${COLORS.accent}70` : COLORS.panelBorder}`,
                 borderRadius: 10,
                 color: COLORS.text,
                 padding: 10,
-                cursor: "pointer",
+                cursor: isRevealingSolution ? "default" : "pointer",
                 textAlign: "left",
                 display: "flex",
                 flexDirection: "column",
                 gap: 8,
+                boxShadow: isSelected ? `0 0 0 1px ${COLORS.accent}40 inset` : "none",
+                opacity: isRevealingSolution ? 0.7 : 1,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
