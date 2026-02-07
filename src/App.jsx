@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 
 const ACT_FNS = {
   linear: { fn: (x) => x, label: "Linear", abbr: "Lin" },
@@ -12,6 +12,8 @@ const GRID = 100;
 const DOMAIN = [-5, 5];
 const SOLVED_STORAGE_KEY = "nn-builder-solved-challenges-v1";
 const REVEAL_DURATION_MS = 1500;
+const DEFAULT_INPUT_VALUES = [0.5, 0.5];
+const REAL_NUMBER_PATTERN = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 const COLORS = {
   bg: "#080c14",
@@ -144,6 +146,146 @@ function createInitialNetwork() {
     { type: "input", activation: "linear", neuronCount: 2 },
     { type: "output", activation: "linear", neurons: [{ bias: 0, weights: [0, 0] }] },
   ];
+}
+
+function parseRealNumber(raw) {
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!text || !REAL_NUMBER_PATTERN.test(text)) return { valid: false, value: 0 };
+  const value = Number(text);
+  if (!Number.isFinite(value)) return { valid: false, value: 0 };
+  return { valid: true, value };
+}
+
+function inputFieldKey(inputIdx) {
+  return `i:${inputIdx}`;
+}
+
+function biasFieldKey(layerIdx, neuronIdx) {
+  return `b:${layerIdx}:${neuronIdx}`;
+}
+
+function weightFieldKey(layerIdx, neuronIdx, weightIdx) {
+  return `w:${layerIdx}:${neuronIdx}:${weightIdx}`;
+}
+
+function numberToDraftText(value) {
+  return Number.isFinite(value) ? String(value) : "0";
+}
+
+function buildParameterDrafts(layers, inputValues) {
+  const drafts = {};
+  for (let i = 0; i < inputValues.length; i++) {
+    drafts[inputFieldKey(i)] = numberToDraftText(inputValues[i]);
+  }
+  for (let layerIdx = 1; layerIdx < layers.length; layerIdx++) {
+    const layer = layers[layerIdx];
+    for (let neuronIdx = 0; neuronIdx < layer.neurons.length; neuronIdx++) {
+      const neuron = layer.neurons[neuronIdx];
+      drafts[biasFieldKey(layerIdx, neuronIdx)] = numberToDraftText(neuron.bias);
+      for (let weightIdx = 0; weightIdx < neuron.weights.length; weightIdx++) {
+        drafts[weightFieldKey(layerIdx, neuronIdx, weightIdx)] = numberToDraftText(neuron.weights[weightIdx]);
+      }
+    }
+  }
+  return drafts;
+}
+
+function readDraftText(drafts, key, fallbackValue) {
+  const text = drafts[key];
+  return typeof text === "string" ? text : numberToDraftText(fallbackValue);
+}
+
+function parseDraftsToNetwork(drafts, layers, inputValues) {
+  const nextInputValues = [];
+  for (let i = 0; i < inputValues.length; i++) {
+    const parsed = parseRealNumber(readDraftText(drafts, inputFieldKey(i), inputValues[i]));
+    if (!parsed.valid) return null;
+    nextInputValues.push(parsed.value);
+  }
+
+  const nextLayers = [{ ...layers[0] }];
+  for (let layerIdx = 1; layerIdx < layers.length; layerIdx++) {
+    const layer = layers[layerIdx];
+    const nextNeurons = [];
+    for (let neuronIdx = 0; neuronIdx < layer.neurons.length; neuronIdx++) {
+      const neuron = layer.neurons[neuronIdx];
+      const parsedBias = parseRealNumber(readDraftText(drafts, biasFieldKey(layerIdx, neuronIdx), neuron.bias));
+      if (!parsedBias.valid) return null;
+      const nextWeights = [];
+      for (let weightIdx = 0; weightIdx < neuron.weights.length; weightIdx++) {
+        const parsedWeight = parseRealNumber(
+          readDraftText(drafts, weightFieldKey(layerIdx, neuronIdx, weightIdx), neuron.weights[weightIdx])
+        );
+        if (!parsedWeight.valid) return null;
+        nextWeights.push(parsedWeight.value);
+      }
+      nextNeurons.push({
+        bias: parsedBias.value,
+        weights: nextWeights,
+      });
+    }
+    nextLayers.push({
+      ...layer,
+      neurons: nextNeurons,
+    });
+  }
+
+  return { layers: nextLayers, inputValues: nextInputValues };
+}
+
+function reconcileParameterDrafts(prevDrafts, layers, inputValues) {
+  const canonicalDrafts = buildParameterDrafts(layers, inputValues);
+  const nextDrafts = {};
+  let changed = false;
+
+  for (const [key, canonicalText] of Object.entries(canonicalDrafts)) {
+    const prevText = prevDrafts[key];
+    if (typeof prevText !== "string") {
+      nextDrafts[key] = canonicalText;
+      changed = true;
+      continue;
+    }
+    const parsedPrev = parseRealNumber(prevText);
+    const canonicalValue = Number(canonicalText);
+    if (parsedPrev.valid && Object.is(parsedPrev.value, canonicalValue)) {
+      nextDrafts[key] = prevText;
+      continue;
+    }
+    nextDrafts[key] = canonicalText;
+    if (prevText !== canonicalText) changed = true;
+  }
+
+  if (!changed && Object.keys(prevDrafts).length === Object.keys(nextDrafts).length) return prevDrafts;
+  return nextDrafts;
+}
+
+function numericArraysEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (!Object.is(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+function networkParametersEqual(aLayers, bLayers) {
+  if (aLayers.length !== bLayers.length) return false;
+  for (let layerIdx = 0; layerIdx < aLayers.length; layerIdx++) {
+    const aLayer = aLayers[layerIdx];
+    const bLayer = bLayers[layerIdx];
+    if (!bLayer || aLayer.type !== bLayer.type || aLayer.activation !== bLayer.activation) return false;
+    if (layerIdx === 0) {
+      if (aLayer.neuronCount !== bLayer.neuronCount) return false;
+      continue;
+    }
+    if (aLayer.neurons.length !== bLayer.neurons.length) return false;
+    for (let neuronIdx = 0; neuronIdx < aLayer.neurons.length; neuronIdx++) {
+      const aNeuron = aLayer.neurons[neuronIdx];
+      const bNeuron = bLayer.neurons[neuronIdx];
+      if (!bNeuron || !Object.is(aNeuron.bias, bNeuron.bias)) return false;
+      if (!numericArraysEqual(aNeuron.weights, bNeuron.weights)) return false;
+    }
+  }
+  return true;
 }
 
 function cloneLayers(layers) {
@@ -638,7 +780,11 @@ function ChallengeThumbnail({ values, min, max }) {
 
 export default function App() {
   const [layers, setLayers] = useState(createInitialNetwork);
-  const [inputValues, setInputValues] = useState([0.5, 0.5]);
+  const [inputValues, setInputValues] = useState(DEFAULT_INPUT_VALUES);
+  const [parameterDrafts, setParameterDrafts] = useState(() => {
+    const initialLayers = createInitialNetwork();
+    return buildParameterDrafts(initialLayers, DEFAULT_INPUT_VALUES);
+  });
   const [sel, setSel] = useState(null);
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
@@ -670,6 +816,9 @@ export default function App() {
   const revealFrameRef = useRef(null);
   const celebrationTimeoutRef = useRef(null);
   const prevChallengeScoreRef = useRef(0);
+  const layersRef = useRef(layers);
+  const inputValuesRef = useRef(inputValues);
+  const parameterDraftsRef = useRef(parameterDrafts);
 
   const challengeCatalog = useMemo(
     () =>
@@ -687,11 +836,29 @@ export default function App() {
     []
   );
 
+  useLayoutEffect(() => {
+    layersRef.current = layers;
+    inputValuesRef.current = inputValues;
+    parameterDraftsRef.current = parameterDrafts;
+  }, [layers, inputValues, parameterDrafts]);
+
   const activeChallenge = useMemo(
     () => challengeCatalog.find((c) => c.id === selectedChallengeId) ?? null,
     [challengeCatalog, selectedChallengeId]
   );
   const challengeComparisonActive = Boolean(isChallengeMode && activeChallenge && !showChallengePicker);
+
+  const draftValidity = useMemo(() => {
+    const canonicalDrafts = buildParameterDrafts(layers, inputValues);
+    const byKey = {};
+    let allValid = true;
+    for (const [key, canonicalText] of Object.entries(canonicalDrafts)) {
+      const valid = parseRealNumber(typeof parameterDrafts[key] === "string" ? parameterDrafts[key] : canonicalText).valid;
+      byKey[key] = valid;
+      if (!valid) allValid = false;
+    }
+    return { byKey, allValid };
+  }, [parameterDrafts, layers, inputValues]);
 
   const layerSizes = useMemo(
     () => layers.map((l) => (l.type === "input" ? l.neuronCount : l.neurons.length)),
@@ -763,6 +930,12 @@ export default function App() {
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }, []);
+
+  useLayoutEffect(() => {
+    if (isRevealingSolution) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setParameterDrafts((prev) => reconcileParameterDrafts(prev, layers, inputValues));
+  }, [layers, inputValues, isRevealingSolution]);
 
   useEffect(() => {
     drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, {
@@ -1061,34 +1234,27 @@ export default function App() {
     if (sel && sel.layerIdx === layerIdx) setSel(null);
   };
 
-  const updateWeight = (layerIdx, neuronIdx, weightIdx, val) => {
-    setLayers((prev) =>
-      prev.map((l, i) => {
-        if (i !== layerIdx) return l;
-        return {
-          ...l,
-          neurons: l.neurons.map((n, j) => {
-            if (j !== neuronIdx) return n;
-            const w = [...n.weights];
-            w[weightIdx] = val;
-            return { ...n, weights: w };
-          }),
-        };
-      })
-    );
-  };
+  const updateParameterDraft = useCallback(
+    (key, text) => {
+      if (isRevealingSolution) return;
+      const nextDrafts = { ...parameterDraftsRef.current, [key]: text };
+      parameterDraftsRef.current = nextDrafts;
+      setParameterDrafts(nextDrafts);
 
-  const updateBias = (layerIdx, neuronIdx, val) => {
-    setLayers((prev) =>
-      prev.map((l, i) => {
-        if (i !== layerIdx) return l;
-        return {
-          ...l,
-          neurons: l.neurons.map((n, j) => (j === neuronIdx ? { ...n, bias: val } : n)),
-        };
-      })
-    );
-  };
+      const parsedState = parseDraftsToNetwork(nextDrafts, layersRef.current, inputValuesRef.current);
+      if (!parsedState) return;
+
+      if (!networkParametersEqual(layersRef.current, parsedState.layers)) {
+        layersRef.current = parsedState.layers;
+        setLayers(parsedState.layers);
+      }
+      if (!numericArraysEqual(inputValuesRef.current, parsedState.inputValues)) {
+        inputValuesRef.current = parsedState.inputValues;
+        setInputValues(parsedState.inputValues);
+      }
+    },
+    [isRevealingSolution]
+  );
 
   const setLayerActivation = (layerIdx, act) => {
     setLayers((prev) => prev.map((l, i) => (i === layerIdx ? { ...l, activation: act } : l)));
@@ -1119,7 +1285,7 @@ export default function App() {
   const resetAll = () => {
     cancelRevealAnimation();
     setLayers(createInitialNetwork());
-    setInputValues([0.5, 0.5]);
+    setInputValues(DEFAULT_INPUT_VALUES);
     setIsRevealingSolution(false);
     setIsSolutionRevealed(false);
     setRevealSolvedLockId(null);
@@ -1220,36 +1386,43 @@ export default function App() {
     const act = activations[layerIdx]?.[neuronIdx];
     const pre = preActivations[layerIdx]?.[neuronIdx];
 
-    const numberInput = (value, onChange, label, step = 0.1) => (
+    const getFieldText = (key, fallback) => parameterDrafts[key] ?? numberToDraftText(fallback);
+
+    const getFieldNumericValue = (key, fallback) => {
+      const parsed = parseRealNumber(parameterDrafts[key]);
+      return parsed.valid ? parsed.value : fallback;
+    };
+
+    const numberInput = (key, fallback, label) => {
+      const isInvalid = draftValidity.byKey[key] === false;
+      return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: 12, color: COLORS.textMuted, minWidth: 60, fontFamily: "'DM Mono', monospace" }}>
           {label}
         </span>
         <input
-          type="number"
-          step={step}
-          value={value}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          type="text"
+          inputMode="decimal"
+          value={getFieldText(key, fallback)}
+          onChange={(e) => updateParameterDraft(key, e.target.value)}
+          disabled={isRevealingSolution}
+          aria-invalid={isInvalid}
           style={{
             flex: 1,
             background: COLORS.bg,
-            border: `1px solid ${COLORS.panelBorder}`,
+            border: `1px solid ${isInvalid ? COLORS.negative : COLORS.panelBorder}`,
             borderRadius: 6,
             padding: "6px 8px",
             color: COLORS.textBright,
             fontFamily: "'DM Mono', monospace",
             fontSize: 13,
             outline: "none",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = COLORS.accent;
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = COLORS.panelBorder;
+            boxShadow: isInvalid ? `0 0 0 1px ${COLORS.negativeDim}` : "none",
           }}
         />
       </div>
-    );
+      );
+    };
 
     return (
       <div style={{ padding: 16, fontFamily: "'Sora', sans-serif", overflowY: "auto", maxHeight: "100%" }}>
@@ -1323,27 +1496,15 @@ export default function App() {
             <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8, fontWeight: 500, letterSpacing: 0.5 }}>
               INPUT VALUE
             </div>
-            {numberInput(
-              inputValues[neuronIdx],
-              (v) => {
-                const nv = [...inputValues];
-                nv[neuronIdx] = v;
-                setInputValues(nv);
-              },
-              neuronLabel,
-              0.1
-            )}
+            {numberInput(inputFieldKey(neuronIdx), inputValues[neuronIdx], neuronLabel)}
             <input
               type="range"
               min={-5}
               max={5}
               step={0.01}
-              value={inputValues[neuronIdx]}
-              onChange={(e) => {
-                const nv = [...inputValues];
-                nv[neuronIdx] = parseFloat(e.target.value);
-                setInputValues(nv);
-              }}
+              value={clamp(getFieldNumericValue(inputFieldKey(neuronIdx), inputValues[neuronIdx]), -5, 5)}
+              onChange={(e) => updateParameterDraft(inputFieldKey(neuronIdx), e.target.value)}
+              disabled={isRevealingSolution}
               style={{ width: "100%", accentColor: COLORS.accent, marginTop: 4 }}
             />
           </div>
@@ -1354,14 +1515,19 @@ export default function App() {
             <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8, fontWeight: 500, letterSpacing: 0.5 }}>
               BIAS
             </div>
-            {numberInput(layers[layerIdx].neurons[neuronIdx].bias, (v) => updateBias(layerIdx, neuronIdx, v), "b")}
+            {numberInput(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias, "b")}
             <input
               type="range"
               min={-5}
               max={5}
               step={0.01}
-              value={layers[layerIdx].neurons[neuronIdx].bias}
-              onChange={(e) => updateBias(layerIdx, neuronIdx, parseFloat(e.target.value))}
+              value={clamp(
+                getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias),
+                -5,
+                5
+              )}
+              onChange={(e) => updateParameterDraft(biasFieldKey(layerIdx, neuronIdx), e.target.value)}
+              disabled={isRevealingSolution}
               style={{ width: "100%", accentColor: COLORS.accent, marginTop: 2 }}
             />
           </div>
@@ -1375,19 +1541,22 @@ export default function App() {
             {layers[layerIdx].neurons[neuronIdx].weights.map((w, wi) => {
               const prevLabel =
                 layerIdx === 1 ? (wi === 0 ? "x₁" : wi === 1 ? "x₂" : `x${wi + 1}`) : `h${layerIdx - 1}n${wi + 1}`;
+              const key = weightFieldKey(layerIdx, neuronIdx, wi);
+              const sliderValue = clamp(getFieldNumericValue(key, w), -5, 5);
               return (
                 <div key={wi}>
-                  {numberInput(w, (v) => updateWeight(layerIdx, neuronIdx, wi, v), `w(${prevLabel})`, 0.1)}
+                  {numberInput(key, w, `w(${prevLabel})`)}
                   <input
                     type="range"
                     min={-5}
                     max={5}
                     step={0.01}
-                    value={w}
-                    onChange={(e) => updateWeight(layerIdx, neuronIdx, wi, parseFloat(e.target.value))}
+                    value={sliderValue}
+                    onChange={(e) => updateParameterDraft(key, e.target.value)}
+                    disabled={isRevealingSolution}
                     style={{
                       width: "100%",
-                      accentColor: w >= 0 ? COLORS.accent : COLORS.negative,
+                      accentColor: sliderValue >= 0 ? COLORS.accent : COLORS.negative,
                       marginTop: -2,
                       marginBottom: 6,
                     }}
@@ -1530,6 +1699,20 @@ export default function App() {
               }}
             >
               {activeChallenge ? `Challenge: ${activeChallenge.name}` : "Challenge mode"}
+            </span>
+          )}
+          {!draftValidity.allValid && (
+            <span
+              style={{
+                fontSize: 11,
+                color: COLORS.negative,
+                background: COLORS.negativeDim,
+                border: `1px solid ${COLORS.negative}40`,
+                padding: "2px 8px",
+                borderRadius: 4,
+              }}
+            >
+              Invalid parameter value - updates paused
             </span>
           )}
         </div>
