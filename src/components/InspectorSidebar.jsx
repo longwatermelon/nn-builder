@@ -22,7 +22,28 @@ export default function InspectorSidebar({
   isRevealingSolution,
   updateParameterDraft,
 }) {
-  if (!sel) return null;
+  if (!sel) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 10,
+          color: COLORS.textMuted,
+          fontFamily: "'Sora', sans-serif",
+          fontSize: 12,
+          textAlign: "center",
+          userSelect: "none",
+        }}
+      >
+        click a neuron to inspect
+      </div>
+    );
+  }
 
   const { layerIdx, neuronIdx } = sel;
   const isInput = layerIdx === 0;
@@ -70,15 +91,7 @@ export default function InspectorSidebar({
   return (
     <div
       style={{
-        width: "100%",
-        maxHeight: "100%",
-        overflowY: "auto",
         padding: 10,
-        borderRadius: 10,
-        border: `1px solid ${COLORS.panelBorder}`,
-        background: "rgba(15,21,35,0.78)",
-        backdropFilter: "blur(7px)",
-        boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
         color: COLORS.text,
         fontFamily: "'Sora', sans-serif",
       }}
@@ -92,6 +105,7 @@ export default function InspectorSidebar({
         </div>
         <button
           onClick={() => setSel(null)}
+          aria-label="Clear selection"
           style={{
             background: "rgba(8,12,20,0.6)",
             border: `1px solid ${COLORS.panelBorder}`,

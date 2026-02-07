@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ACT_FNS, fmt, neuronColor } from "../lib/networkMath";
 import InspectorSidebar from "./InspectorSidebar";
 import { COLORS } from "../styles/theme";
@@ -23,13 +23,9 @@ export default function NetworkGraph({
 }) {
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
-  const [inspectorPosition, setInspectorPosition] = useState(null);
 
   const dragStartY = useRef(0);
   const dragStartH = useRef(0);
-  const graphViewportRef = useRef(null);
-  const svgRef = useRef(null);
-  const inspectorRef = useRef(null);
 
   const SVG_H = netHeight;
 
@@ -50,90 +46,6 @@ export default function NetworkGraph({
     }
     return positions;
   }, [layers.length, layerSizes, SVG_H]);
-
-  const selectedNeuronPosition = useMemo(() => {
-    if (!sel) return null;
-    return neuronPositions[sel.layerIdx]?.[sel.neuronIdx] ?? null;
-  }, [sel, neuronPositions]);
-
-  const positionInspector = useCallback(() => {
-    if (!sel || !selectedNeuronPosition || !graphViewportRef.current || !inspectorRef.current || !svgRef.current) {
-      setInspectorPosition(null);
-      return;
-    }
-
-    const viewportRect = graphViewportRef.current.getBoundingClientRect();
-    const inspectorRect = inspectorRef.current.getBoundingClientRect();
-    const svgNode = svgRef.current;
-    const ctm = svgNode.getScreenCTM();
-    if (!ctm) {
-      setInspectorPosition(null);
-      return;
-    }
-
-    const centerPoint = svgNode.createSVGPoint();
-    centerPoint.x = selectedNeuronPosition.x;
-    centerPoint.y = selectedNeuronPosition.y;
-    const centerScreenPoint = centerPoint.matrixTransform(ctm);
-
-    const radiusXPoint = svgNode.createSVGPoint();
-    radiusXPoint.x = selectedNeuronPosition.x + NEURON_R;
-    radiusXPoint.y = selectedNeuronPosition.y;
-    const radiusXScreenPoint = radiusXPoint.matrixTransform(ctm);
-
-    const radiusYPoint = svgNode.createSVGPoint();
-    radiusYPoint.x = selectedNeuronPosition.x;
-    radiusYPoint.y = selectedNeuronPosition.y + NEURON_R;
-    const radiusYScreenPoint = radiusYPoint.matrixTransform(ctm);
-
-    const neuronX = centerScreenPoint.x - viewportRect.left;
-    const neuronY = centerScreenPoint.y - viewportRect.top;
-    const neuronRadiusX = Math.abs(radiusXScreenPoint.x - centerScreenPoint.x) || NEURON_R;
-    const neuronRadiusY = Math.abs(radiusYScreenPoint.y - centerScreenPoint.y) || NEURON_R;
-    const edgePad = 8;
-    const sideGap = 10;
-
-    let left = neuronX + neuronRadiusX + sideGap;
-    if (left + inspectorRect.width > viewportRect.width - edgePad) {
-      left = neuronX - inspectorRect.width - neuronRadiusX - sideGap;
-    }
-    left = Math.max(edgePad, Math.min(viewportRect.width - inspectorRect.width - edgePad, left));
-
-    let top = neuronY - (neuronRadiusY - 4);
-    top = Math.max(edgePad, Math.min(viewportRect.height - inspectorRect.height - edgePad, top));
-
-    setInspectorPosition((prev) => {
-      if (prev && Math.abs(prev.left - left) < 0.5 && Math.abs(prev.top - top) < 0.5) return prev;
-      return { left, top };
-    });
-  }, [sel, selectedNeuronPosition]);
-
-  useLayoutEffect(() => {
-    if (!sel || !selectedNeuronPosition) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    positionInspector();
-  }, [sel, selectedNeuronPosition, netHeight, positionInspector]);
-
-  useEffect(() => {
-    if (!sel) return;
-    const onResize = () => positionInspector();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [sel, positionInspector]);
-
-  useEffect(() => {
-    if (!sel || !graphViewportRef.current || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => positionInspector());
-    observer.observe(graphViewportRef.current);
-    return () => observer.disconnect();
-  }, [sel, positionInspector]);
-
-  useEffect(() => {
-    if (!sel || !inspectorRef.current || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => positionInspector());
-    observer.observe(inspectorRef.current);
-    return () => observer.disconnect();
-  }, [sel, positionInspector]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -161,18 +73,17 @@ export default function NetworkGraph({
         borderRadius: 10,
         border: `1px solid ${COLORS.panelBorder}`,
         padding: 8,
-        position: "relative",
         flexShrink: 0,
       }}
     >
-      <div ref={graphViewportRef} style={{ position: "relative", width: "100%", height: netHeight }}>
-        <svg
-          ref={svgRef}
-          width={SVG_W}
-          height={SVG_H}
-          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          style={{ width: "100%", height: "100%", display: "block", userSelect: dragging ? "none" : undefined }}
-        >
+      <div style={{ display: "flex", height: netHeight }}>
+        <div style={{ flex: "0 0 60%", minWidth: 0 }}>
+          <svg
+            width={SVG_W}
+            height={SVG_H}
+            viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+            style={{ width: "100%", height: "100%", display: "block", userSelect: dragging ? "none" : undefined }}
+          >
           <defs>
             <filter id="glow">
               <feGaussianBlur stdDeviation="3" result="blur" />
@@ -288,35 +199,28 @@ export default function NetworkGraph({
             );
           })}
         </svg>
-
-        {sel && (
-          <div
-            ref={inspectorRef}
-            style={{
-              position: "absolute",
-              left: inspectorPosition ? inspectorPosition.left : 0,
-              top: inspectorPosition ? inspectorPosition.top : 0,
-              width: "min(270px, calc(100% - 16px))",
-              maxHeight: "calc(100% - 16px)",
-              visibility: inspectorPosition ? "visible" : "hidden",
-              pointerEvents: inspectorPosition ? "auto" : "none",
-              zIndex: 6,
-            }}
-          >
-            <InspectorSidebar
-              sel={sel}
-              setSel={setSel}
-              layers={layers}
-              activations={activations}
-              preActivations={preActivations}
-              parameterDrafts={parameterDrafts}
-              inputValues={inputValues}
-              draftValidityByKey={draftValidityByKey}
-              isRevealingSolution={isRevealingSolution}
-              updateParameterDraft={updateParameterDraft}
-            />
-          </div>
-        )}
+        </div>
+        <div
+          style={{
+            flex: "0 0 40%",
+            minWidth: 0,
+            borderLeft: `1px solid ${COLORS.panelBorder}`,
+            overflowY: "auto",
+          }}
+        >
+          <InspectorSidebar
+            sel={sel}
+            setSel={setSel}
+            layers={layers}
+            activations={activations}
+            preActivations={preActivations}
+            parameterDrafts={parameterDrafts}
+            inputValues={inputValues}
+            draftValidityByKey={draftValidityByKey}
+            isRevealingSolution={isRevealingSolution}
+            updateParameterDraft={updateParameterDraft}
+          />
+        </div>
       </div>
       <div
         onMouseDown={(e) => {
