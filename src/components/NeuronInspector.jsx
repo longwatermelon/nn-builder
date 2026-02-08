@@ -9,6 +9,10 @@ import {
   weightFieldKey,
 } from "../lib/networkMath";
 import { COLORS } from "../styles/theme";
+import MathText from "./MathText";
+
+const ZERO_EPSILON = 1e-12;
+const UNIT_COEFFICIENT_EPSILON = 1e-9;
 
 export default function NeuronInspector({
   sel,
@@ -72,6 +76,38 @@ export default function NeuronInspector({
     return `h${layerIdx - 1}n${weightIdx + 1}`;
   };
 
+  const getIncomingSourceTex = (weightIdx) => {
+    if (layerIdx === 1) return `x_{${weightIdx + 1}}`;
+    return `h_{${layerIdx - 1},${weightIdx + 1}}`;
+  };
+
+  const formatLatexNumber = (value) => {
+    if (!Number.isFinite(value)) return "0";
+    const normalized = Math.abs(value) < ZERO_EPSILON ? 0 : value;
+    const magnitude = Math.abs(normalized);
+    if (magnitude !== 0 && (magnitude >= 1000 || magnitude < 0.001)) {
+      const [mantissa, exponent] = normalized.toExponential(2).split("e");
+      return `${Number(mantissa)}\\,10^{${Number(exponent)}}`;
+    }
+    return String(Number(normalized.toFixed(3)));
+  };
+
+  const wrapActivationTex = (activationKey, affineTex) => {
+    switch (activationKey) {
+      case "relu":
+        return `\\operatorname{ReLU}\\left(${affineTex}\\right)`;
+      case "lrelu":
+        return `\\operatorname{LeakyReLU}\\left(${affineTex}\\right)`;
+      case "sigmoid":
+        return `\\sigma\\left(${affineTex}\\right)`;
+      case "tanh":
+        return `\\tanh\\left(${affineTex}\\right)`;
+      case "linear":
+      default:
+        return affineTex;
+    }
+  };
+
   const numberInput = (key, fallback, label) => {
     const isInvalid = draftValidityByKey[key] === false;
     return (
@@ -101,6 +137,46 @@ export default function NeuronInspector({
       </div>
     );
   };
+
+  const neuronEquationTex = !isInput
+    ? (() => {
+        const neuron = layers[layerIdx].neurons[neuronIdx];
+        const weightedTerms = [];
+        for (let weightIdx = 0; weightIdx < neuron.weights.length; weightIdx++) {
+          const weight = neuron.weights[weightIdx];
+          const weightValue = getFieldNumericValue(weightFieldKey(layerIdx, neuronIdx, weightIdx), weight);
+          if (Math.abs(weightValue) <= ZERO_EPSILON) continue;
+          const sourceTex = getIncomingSourceTex(weightIdx);
+          const absWeight = Math.abs(weightValue);
+          const coefficientTex = Math.abs(absWeight - 1) < UNIT_COEFFICIENT_EPSILON ? "" : formatLatexNumber(absWeight);
+          weightedTerms.push({
+            isNegative: weightValue < 0,
+            tex: `${coefficientTex}${sourceTex}`,
+          });
+        }
+
+        const affineTerms = weightedTerms.map((term, idx) => {
+          if (idx === 0) return term.isNegative ? `-${term.tex}` : term.tex;
+          return `${term.isNegative ? "-" : "+"} ${term.tex}`;
+        });
+
+        const biasValue = getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), neuron.bias);
+        if (Math.abs(biasValue) > ZERO_EPSILON) {
+          const biasTerm = formatLatexNumber(Math.abs(biasValue));
+          if (affineTerms.length === 0) {
+            affineTerms.push(biasValue < 0 ? `-${biasTerm}` : biasTerm);
+          } else {
+            affineTerms.push(`${biasValue < 0 ? "-" : "+"} ${biasTerm}`);
+          }
+        }
+
+        const hasAnyAffineTerm = affineTerms.length > 0;
+        const affineTex = hasAnyAffineTerm ? affineTerms.join(" ") : "0";
+        const activatedTex = wrapActivationTex(layers[layerIdx].activation, affineTex);
+        const neuronTex = layerIdx === layers.length - 1 ? "\\mathrm{out}" : `h_{${layerIdx},${neuronIdx + 1}}`;
+        return `${neuronTex} = ${activatedTex}`;
+      })()
+    : "";
 
   return (
     <div
@@ -177,6 +253,21 @@ export default function NeuronInspector({
             disabled={isRevealingSolution}
             style={{ width: "100%", accentColor: COLORS.accent, marginTop: 2 }}
           />
+        </div>
+      )}
+
+      {!isInput && (
+        <div
+          style={{
+            marginBottom: 10,
+            background: "rgba(11,16,24,0.8)",
+            borderRadius: 8,
+            padding: 9,
+            border: `1px solid ${COLORS.panelBorder}`,
+          }}
+        >
+          <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>EQUATION</div>
+          <MathText tex={neuronEquationTex} style={{ fontSize: 13, color: COLORS.textBright, lineHeight: 1.35 }} />
         </div>
       )}
 

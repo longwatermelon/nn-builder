@@ -364,7 +364,7 @@ export function reconcileParameterDrafts(prevDrafts, layers, inputValues) {
     }
     const parsedPrev = parseRealNumber(prevText);
     const canonicalValue = Number(canonicalText);
-    if (parsedPrev.valid && Object.is(parsedPrev.value, canonicalValue)) {
+    if (parsedPrev.valid && parsedPrev.value === canonicalValue) {
       nextDrafts[key] = prevText;
       continue;
     }
