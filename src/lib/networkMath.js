@@ -9,6 +9,14 @@ export const ACT_FNS = {
 export const SOLVED_STORAGE_KEY = "nn-builder-solved-challenges-v1";
 export const REVEAL_DURATION_MS = 1500;
 export const DEFAULT_INPUT_VALUES = [0.5, 0.5];
+export const NETWORK_JSON_SCHEMA = "nn-builder/network";
+export const NETWORK_JSON_VERSION = 1;
+export const NETWORK_IMPORT_LIMITS = Object.freeze({
+  maxLayers: 20,
+  maxNeuronsPerLayer: 128,
+  maxTotalWeights: 20_000,
+  maxFileBytes: 5_000_000,
+});
 
 const REAL_NUMBER_PATTERN = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -89,6 +97,168 @@ export function createInitialNetwork() {
     { type: "input", activation: "linear", neuronCount: 2 },
     { type: "output", activation: "linear", neurons: [{ bias: 0, weights: [0, 0] }] },
   ];
+}
+
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function sanitizeInputValues(inputValues) {
+  if (!Array.isArray(inputValues) || inputValues.length !== DEFAULT_INPUT_VALUES.length) {
+    return { valid: false, error: `Input values must contain exactly ${DEFAULT_INPUT_VALUES.length} numbers.` };
+  }
+  if (!inputValues.every(isFiniteNumber)) {
+    return { valid: false, error: "Input values must all be finite numbers." };
+  }
+  return { valid: true, values: [...inputValues] };
+}
+
+function sanitizeLayers(layers) {
+  if (!Array.isArray(layers) || layers.length < 2) {
+    return { valid: false, error: "Network must include at least an input and output layer." };
+  }
+  if (layers.length > NETWORK_IMPORT_LIMITS.maxLayers) {
+    return { valid: false, error: `Network has too many layers (max ${NETWORK_IMPORT_LIMITS.maxLayers}).` };
+  }
+
+  const nextLayers = [];
+  const inputLayer = layers[0];
+  if (!inputLayer || typeof inputLayer !== "object") {
+    return { valid: false, error: "Input layer is missing or malformed." };
+  }
+  if (inputLayer.neuronCount !== DEFAULT_INPUT_VALUES.length) {
+    return { valid: false, error: `Input layer must have exactly ${DEFAULT_INPUT_VALUES.length} neurons.` };
+  }
+  nextLayers.push({ type: "input", activation: "linear", neuronCount: DEFAULT_INPUT_VALUES.length });
+
+  let prevSize = DEFAULT_INPUT_VALUES.length;
+  let totalWeights = 0;
+  for (let layerIdx = 1; layerIdx < layers.length; layerIdx++) {
+    const layer = layers[layerIdx];
+    if (!layer || typeof layer !== "object") {
+      return { valid: false, error: `Layer ${layerIdx} is malformed.` };
+    }
+    const activationExists =
+      typeof layer.activation === "string" && Object.prototype.hasOwnProperty.call(ACT_FNS, layer.activation);
+    if (!activationExists || typeof ACT_FNS[layer.activation].fn !== "function") {
+      return { valid: false, error: `Layer ${layerIdx} has an unsupported activation function.` };
+    }
+    if (!Array.isArray(layer.neurons) || layer.neurons.length === 0) {
+      return { valid: false, error: `Layer ${layerIdx} must include at least one neuron.` };
+    }
+    if (layer.neurons.length > NETWORK_IMPORT_LIMITS.maxNeuronsPerLayer) {
+      return {
+        valid: false,
+        error: `Layer ${layerIdx} has too many neurons (max ${NETWORK_IMPORT_LIMITS.maxNeuronsPerLayer}).`,
+      };
+    }
+    if (layerIdx === layers.length - 1 && layer.neurons.length !== 1) {
+      return { valid: false, error: "Output layer must contain exactly one neuron." };
+    }
+
+    const nextNeurons = [];
+    for (let neuronIdx = 0; neuronIdx < layer.neurons.length; neuronIdx++) {
+      const neuron = layer.neurons[neuronIdx];
+      if (!neuron || typeof neuron !== "object") {
+        return { valid: false, error: `Layer ${layerIdx}, neuron ${neuronIdx} is malformed.` };
+      }
+      if (!isFiniteNumber(neuron.bias)) {
+        return { valid: false, error: `Layer ${layerIdx}, neuron ${neuronIdx} has an invalid bias.` };
+      }
+      if (!Array.isArray(neuron.weights) || neuron.weights.length !== prevSize) {
+        return {
+          valid: false,
+          error: `Layer ${layerIdx}, neuron ${neuronIdx} must have exactly ${prevSize} weights.`,
+        };
+      }
+      if (!neuron.weights.every(isFiniteNumber)) {
+        return { valid: false, error: `Layer ${layerIdx}, neuron ${neuronIdx} has invalid weights.` };
+      }
+      totalWeights += neuron.weights.length;
+      if (totalWeights > NETWORK_IMPORT_LIMITS.maxTotalWeights) {
+        return {
+          valid: false,
+          error: `Network has too many weights (max ${NETWORK_IMPORT_LIMITS.maxTotalWeights}).`,
+        };
+      }
+      nextNeurons.push({
+        bias: neuron.bias,
+        weights: [...neuron.weights],
+      });
+    }
+
+    const isOutput = layerIdx === layers.length - 1;
+    nextLayers.push({
+      type: isOutput ? "output" : "hidden",
+      activation: layer.activation,
+      neurons: nextNeurons,
+    });
+    prevSize = nextNeurons.length;
+  }
+
+  return { valid: true, layers: nextLayers };
+}
+
+export function createNetworkExportPayload(layers, inputValues) {
+  return {
+    schema: NETWORK_JSON_SCHEMA,
+    version: NETWORK_JSON_VERSION,
+    exportedAt: new Date().toISOString(),
+    network: {
+      layers: cloneLayers(layers),
+      inputValues: [...inputValues],
+    },
+  };
+}
+
+export function parseNetworkImportPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return { valid: false, error: "JSON root must be an object." };
+  }
+
+  const hasSchema = Object.prototype.hasOwnProperty.call(payload, "schema");
+  const hasVersion = Object.prototype.hasOwnProperty.call(payload, "version");
+  const hasNestedNetwork = payload.network && typeof payload.network === "object";
+  const hasAnyMetadata = hasSchema || hasVersion;
+  const hasMetadata = hasSchema && hasVersion;
+  if (hasAnyMetadata && !hasMetadata) {
+    return { valid: false, error: "JSON metadata is incomplete." };
+  }
+  if (hasMetadata) {
+    if (payload.schema !== NETWORK_JSON_SCHEMA) {
+      return { valid: false, error: "Unsupported JSON schema." };
+    }
+    if (payload.version !== NETWORK_JSON_VERSION) {
+      return { valid: false, error: "Unsupported JSON version." };
+    }
+    if (!payload.network || typeof payload.network !== "object") {
+      return { valid: false, error: "Missing network payload." };
+    }
+  }
+
+  const hasTopLevelLayers = Object.prototype.hasOwnProperty.call(payload, "layers");
+  const candidate = hasMetadata ? payload.network : hasTopLevelLayers ? payload : hasNestedNetwork ? payload.network : payload;
+  const layersResult = sanitizeLayers(candidate.layers);
+  if (!layersResult.valid) return layersResult;
+
+  const hasInputValues = Object.prototype.hasOwnProperty.call(candidate, "inputValues");
+  const hasLegacyTopLevelInputs = !hasMetadata && candidate !== payload && Object.prototype.hasOwnProperty.call(payload, "inputValues");
+  if (!hasInputValues && !hasLegacyTopLevelInputs) {
+    return { valid: false, error: "Missing input values." };
+  }
+  const providedInputs = hasInputValues
+    ? candidate.inputValues
+    : hasLegacyTopLevelInputs
+      ? payload.inputValues
+      : null;
+  const inputResult = sanitizeInputValues(providedInputs);
+  if (!inputResult.valid) return inputResult;
+
+  return {
+    valid: true,
+    layers: layersResult.layers,
+    inputValues: inputResult.values,
+  };
 }
 
 export function parseRealNumber(raw) {

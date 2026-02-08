@@ -8,24 +8,92 @@ import { computeGrid, computeMSE, computeVariance } from "./lib/heatmap";
 import {
   ACT_FNS,
   DEFAULT_INPUT_VALUES,
+  NETWORK_IMPORT_LIMITS,
   REVEAL_DURATION_MS,
   SOLVED_STORAGE_KEY,
   buildParameterDrafts,
   clamp,
   cloneLayers,
   computeOutput,
+  createNetworkExportPayload,
   createInitialNetwork,
   forwardPassFull,
   lerpLayers,
   networkArchitectureMatches,
   networkParametersEqual,
   numericArraysEqual,
+  parseNetworkImportPayload,
   parseDraftsToNetwork,
   parseRealNumber,
   reconcileParameterDrafts,
   zeroLayersLike,
 } from "./lib/networkMath";
 import { btnStyle, COLORS, smallBtnStyle } from "./styles/theme";
+
+function countNetworkWeights(layers) {
+  return layers.reduce((sum, layer, layerIdx) => {
+    if (layerIdx === 0) return sum;
+    return sum + layer.neurons.reduce((layerSum, neuron) => layerSum + neuron.weights.length, 0);
+  }, 0);
+}
+
+function buildLayersWithAddedHiddenLayer(layers) {
+  const outIdx = layers.length - 1;
+  const prevLayer = layers[outIdx - 1];
+  const prevSize = outIdx - 1 === 0 ? layers[0].neuronCount : prevLayer.neurons.length;
+  const newCount = 3;
+  const newLayer = {
+    type: "hidden",
+    activation: "relu",
+    neurons: Array.from({ length: newCount }, () => ({
+      bias: 0,
+      weights: Array(prevSize).fill(0),
+    })),
+  };
+  const newOutput = {
+    ...layers[outIdx],
+    neurons: layers[outIdx].neurons.map((n) => ({
+      ...n,
+      weights: Array(newCount).fill(0),
+    })),
+  };
+  return [...layers.slice(0, outIdx), newLayer, newOutput];
+}
+
+function buildLayersWithAddedNeuron(layers, layerIdx) {
+  return layers.map((layer, i) => {
+    if (i === layerIdx) {
+      const prevSize = i === 1 ? layers[0].neuronCount : layers[i - 1].neurons.length;
+      return {
+        ...layer,
+        neurons: [...layer.neurons, { bias: 0, weights: Array(prevSize).fill(0) }],
+      };
+    }
+    if (i === layerIdx + 1) {
+      return {
+        ...layer,
+        neurons: layer.neurons.map((n) => ({ ...n, weights: [...n.weights, 0] })),
+      };
+    }
+    return layer;
+  });
+}
+
+function buildLayersWithRemovedLayer(layers, idx) {
+  const prevSize = idx === 1 ? layers[0].neuronCount : layers[idx - 1].neurons.length;
+  const next = [...layers];
+  next.splice(idx, 1);
+  if (idx < next.length) {
+    next[idx] = {
+      ...next[idx],
+      neurons: next[idx].neurons.map((n) => ({
+        ...n,
+        weights: Array(prevSize).fill(0),
+      })),
+    };
+  }
+  return next;
+}
 
 export default function App() {
   const [layers, setLayers] = useState(createInitialNetwork);
@@ -59,6 +127,7 @@ export default function App() {
   const layersRef = useRef(layers);
   const inputValuesRef = useRef(inputValues);
   const parameterDraftsRef = useRef(parameterDrafts);
+  const importFileInputRef = useRef(null);
 
   const challengeCatalog = useMemo(
     () =>
@@ -319,71 +388,67 @@ export default function App() {
   };
 
   const addHiddenLayer = () => {
+    if (layers.length >= NETWORK_IMPORT_LIMITS.maxLayers) {
+      window.alert(`Layer limit reached (${NETWORK_IMPORT_LIMITS.maxLayers}).`);
+      return;
+    }
+
+    const nextLayers = buildLayersWithAddedHiddenLayer(layers);
+    if (countNetworkWeights(nextLayers) > NETWORK_IMPORT_LIMITS.maxTotalWeights) {
+      window.alert(`Weight limit reached (${NETWORK_IMPORT_LIMITS.maxTotalWeights}).`);
+      return;
+    }
+
     setLayers((prev) => {
-      const outIdx = prev.length - 1;
-      const prevLayer = prev[outIdx - 1];
-      const prevSize = outIdx - 1 === 0 ? prev[0].neuronCount : prevLayer.neurons.length;
-      const newCount = 3;
-      const newLayer = {
-        type: "hidden",
-        activation: "relu",
-        neurons: Array.from({ length: newCount }, () => ({
-          bias: 0,
-          weights: Array(prevSize).fill(0),
-        })),
-      };
-      const newOutput = {
-        ...prev[outIdx],
-        neurons: prev[outIdx].neurons.map((n) => ({
-          ...n,
-          weights: Array(newCount).fill(0),
-        })),
-      };
-      return [...prev.slice(0, outIdx), newLayer, newOutput];
+      if (prev.length >= NETWORK_IMPORT_LIMITS.maxLayers) return prev;
+      const withHiddenLayer = buildLayersWithAddedHiddenLayer(prev);
+      if (countNetworkWeights(withHiddenLayer) > NETWORK_IMPORT_LIMITS.maxTotalWeights) return prev;
+      return withHiddenLayer;
     });
     setSel(null);
   };
 
   const removeLayer = (idx) => {
     if (idx === 0 || idx === layers.length - 1) return;
+    const nextLayers = buildLayersWithRemovedLayer(layers, idx);
+    const currentWeightCount = countNetworkWeights(layers);
+    const nextWeightCount = countNetworkWeights(nextLayers);
+    if (nextWeightCount > NETWORK_IMPORT_LIMITS.maxTotalWeights && nextWeightCount >= currentWeightCount) {
+      window.alert(`Weight limit reached (${NETWORK_IMPORT_LIMITS.maxTotalWeights}).`);
+      return;
+    }
+
     setLayers((prev) => {
-      const prevSize = idx === 1 ? prev[0].neuronCount : prev[idx - 1].neurons.length;
-      const next = [...prev];
-      next.splice(idx, 1);
-      if (idx < next.length) {
-        next[idx] = {
-          ...next[idx],
-          neurons: next[idx].neurons.map((n) => ({
-            ...n,
-            weights: Array(prevSize).fill(0),
-          })),
-        };
-      }
-      return next;
+      if (idx === 0 || idx === prev.length - 1) return prev;
+      const withRemovedLayer = buildLayersWithRemovedLayer(prev, idx);
+      const prevWeightCount = countNetworkWeights(prev);
+      const nextWeightCount = countNetworkWeights(withRemovedLayer);
+      if (nextWeightCount > NETWORK_IMPORT_LIMITS.maxTotalWeights && nextWeightCount >= prevWeightCount) return prev;
+      return withRemovedLayer;
     });
     setSel(null);
   };
 
   const addNeuron = (layerIdx) => {
     if (layerIdx === 0 || layerIdx === layers.length - 1) return;
-    setLayers((prev) =>
-      prev.map((layer, i) => {
-        if (i === layerIdx) {
-          const prevSize = i === 1 ? prev[0].neuronCount : prev[i - 1].neurons.length;
-          return {
-            ...layer,
-            neurons: [...layer.neurons, { bias: 0, weights: Array(prevSize).fill(0) }],
-          };
-        }
-        if (i === layerIdx + 1) {
-          return {
-            ...layer,
-            neurons: layer.neurons.map((n) => ({ ...n, weights: [...n.weights, 0] })),
-          };
-        }
-        return layer;
-      })
-    );
+    if (layers[layerIdx].neurons.length >= NETWORK_IMPORT_LIMITS.maxNeuronsPerLayer) {
+      window.alert(`Neuron limit reached (${NETWORK_IMPORT_LIMITS.maxNeuronsPerLayer}) for this layer.`);
+      return;
+    }
+
+    const nextLayers = buildLayersWithAddedNeuron(layers, layerIdx);
+    if (countNetworkWeights(nextLayers) > NETWORK_IMPORT_LIMITS.maxTotalWeights) {
+      window.alert(`Weight limit reached (${NETWORK_IMPORT_LIMITS.maxTotalWeights}).`);
+      return;
+    }
+
+    setLayers((prev) => {
+      if (layerIdx <= 0 || layerIdx >= prev.length - 1) return prev;
+      if (prev[layerIdx].neurons.length >= NETWORK_IMPORT_LIMITS.maxNeuronsPerLayer) return prev;
+      const withNeuron = buildLayersWithAddedNeuron(prev, layerIdx);
+      if (countNetworkWeights(withNeuron) > NETWORK_IMPORT_LIMITS.maxTotalWeights) return prev;
+      return withNeuron;
+    });
   };
 
   const removeNeuron = (layerIdx, neuronIdx) => {
@@ -470,6 +535,72 @@ export default function App() {
     setSel(null);
   };
 
+  const handleExportNetwork = () => {
+    const payload = createNetworkExportPayload(layersRef.current, inputValuesRef.current);
+    const validation = parseNetworkImportPayload(payload);
+    if (!validation.valid) {
+      window.alert(`Export blocked: ${validation.error}`);
+      return;
+    }
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const objectUrl = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = objectUrl;
+    downloadLink.download = `nn-builder-network-${stamp}.json`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+    }, 0);
+  };
+
+  const handleImportClick = () => {
+    importFileInputRef.current?.click();
+  };
+
+  const handleImportNetworkFile = async (event) => {
+    const inputElement = event.target;
+    const file = inputElement.files?.[0];
+    inputElement.value = "";
+    if (!file) return;
+    if (file.size > NETWORK_IMPORT_LIMITS.maxFileBytes) {
+      window.alert("Import failed: file is too large.");
+      return;
+    }
+
+    try {
+      const rawText = await file.text();
+      const parsedJson = JSON.parse(rawText);
+      const imported = parseNetworkImportPayload(parsedJson);
+      if (!imported.valid) {
+        window.alert(`Import failed: ${imported.error}`);
+        return;
+      }
+      const confirmed = window.confirm("Import this network JSON? Your current network will be replaced.");
+      if (!confirmed) return;
+
+      cancelRevealAnimation();
+      setLayers(imported.layers);
+      setInputValues(imported.inputValues);
+      setIsRevealingSolution(false);
+      setIsSolutionRevealed(false);
+      setRevealSolvedLockId(null);
+      setSavedAttempt(null);
+      setIsMatchCelebrating(false);
+      prevChallengeScoreRef.current = 0;
+      setSel(null);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        window.alert("Import failed: file is not valid JSON.");
+        return;
+      }
+      window.alert("Import failed: unable to read file.");
+    }
+  };
+
   return (
     <div
       style={{
@@ -540,6 +671,19 @@ export default function App() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <input
+            ref={importFileInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportNetworkFile}
+            style={{ display: "none" }}
+          />
+          <button onClick={handleImportClick} style={btnStyle}>
+            Import JSON
+          </button>
+          <button onClick={handleExportNetwork} style={btnStyle}>
+            Export JSON
+          </button>
           <button onClick={randomizeAll} style={btnStyle}>
             ⟳ Randomize
           </button>
