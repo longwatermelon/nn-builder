@@ -31,88 +31,66 @@ function createSingleHiddenSolution({
   ];
 }
 
-function buildReluSplineTerm({ fn, min, max, segments, inputWeights, scale = 1 }) {
-  const segs = Math.max(2, segments);
-  const step = (max - min) / segs;
-  const knots = Array.from({ length: segs + 1 }, (_, i) => min + i * step);
-  const values = knots.map((x) => fn(x));
-
-  const slopes = [];
-  for (let i = 0; i < segs; i++) {
-    slopes.push((values[i + 1] - values[i]) / step);
-  }
-
-  const coeffs = [slopes[0]];
-  for (let i = 1; i < slopes.length; i++) {
-    coeffs.push(slopes[i] - slopes[i - 1]);
-  }
-
-  const baseBias = values[0];
-  const neurons = knots.slice(0, -1).map((threshold) => ({
-    bias: -threshold,
-    weights: [...inputWeights],
-  }));
-
-  return {
-    neurons,
-    outputWeights: coeffs.map((c) => c * scale),
-    outputBias: baseBias * scale,
-  };
-}
-
-function createReluSplineSolution(terms) {
-  const hiddenNeurons = [];
-  const outputWeights = [];
-  let outputBias = 0;
-
-  for (const term of terms) {
-    hiddenNeurons.push(...term.neurons);
-    outputWeights.push(...term.outputWeights);
-    outputBias += term.outputBias;
-  }
-
-  return createSingleHiddenSolution({
-    hiddenActivation: "relu",
-    hiddenNeurons,
-    outputWeights,
-    outputBias,
-    outputActivation: "linear",
-  });
-}
-
 export const CHALLENGE_DEFS = [
   {
     id: "identity",
     name: "Identity",
     formula: "x_1",
-    difficulty: "Beginner",
+    difficulty: "tutorial",
     par: "0 hidden · linear",
     targetFn: (x1) => x1,
     solutionFactory: () => createLinearSolution([1, 0], 0, "linear"),
   },
   {
-    id: "linear_combo",
-    name: "Linear Combo",
-    formula: "2x_1 - x_2 + 1",
-    difficulty: "Beginner",
+    id: "input_sum",
+    name: "Input Sum",
+    formula: "x_1 + x_2",
+    difficulty: "tutorial",
     par: "0 hidden · linear",
-    targetFn: (x1, x2) => 2 * x1 - x2 + 1,
-    solutionFactory: () => createLinearSolution([2, -1], 1, "linear"),
+    targetFn: (x1, x2) => x1 + x2,
+    solutionFactory: () => createLinearSolution([1, 1], 0, "linear"),
   },
   {
     id: "relu_ramp",
     name: "ReLU Ramp",
     formula: "\\max(0, x_1)",
-    difficulty: "Intermediate",
+    difficulty: "tutorial",
     par: "0 hidden · relu output",
     targetFn: (x1) => Math.max(0, x1),
     solutionFactory: () => createLinearSolution([1, 0], 0, "relu"),
   },
   {
+    id: "tanh_curve",
+    name: "Tanh Curve",
+    formula: "\\tanh(x_1)",
+    difficulty: "tutorial",
+    par: "0 hidden · tanh output",
+    targetFn: (x1) => Math.tanh(x1),
+    solutionFactory: () => createLinearSolution([1, 0], 0, "tanh"),
+  },
+  {
+    id: "linear_combo",
+    name: "Linear Combo",
+    formula: "2x_1 - x_2 + 1",
+    difficulty: "easy",
+    par: "0 hidden · linear",
+    targetFn: (x1, x2) => 2 * x1 - x2 + 1,
+    solutionFactory: () => createLinearSolution([2, -1], 1, "linear"),
+  },
+  {
+    id: "step_edge",
+    name: "Step Edge",
+    formula: "\\begin{cases}1,&x_1 \\ge 0\\\\-1,&x_1 < 0\\end{cases}",
+    difficulty: "easy",
+    par: "0 hidden · tanh output",
+    targetFn: (x1) => (x1 >= 0 ? 1 : -1),
+    solutionFactory: () => createLinearSolution([2.8, 0], 0, "tanh"),
+  },
+  {
     id: "absolute_value",
     name: "Absolute Value",
     formula: "\\left|x_1\\right|",
-    difficulty: "Intermediate",
+    difficulty: "medium",
     par: "1 hidden · 2 relu",
     targetFn: (x1) => Math.abs(x1),
     solutionFactory: () =>
@@ -131,7 +109,7 @@ export const CHALLENGE_DEFS = [
     id: "max_two_inputs",
     name: "Max Of Two",
     formula: "\\max(x_1, x_2)",
-    difficulty: "Intermediate",
+    difficulty: "medium",
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(x1, x2),
     solutionFactory: () =>
@@ -148,125 +126,92 @@ export const CHALLENGE_DEFS = [
       }),
   },
   {
-    id: "quadratic",
-    name: "Quadratic",
-    formula: "x_1^2",
-    difficulty: "Advanced",
-    par: "1 hidden · ~18 relu",
-    targetFn: (x1) => x1 * x1,
+    id: "absolute_difference",
+    name: "Absolute Difference",
+    formula: "\\left|x_1 - x_2\\right|",
+    difficulty: "medium",
+    par: "1 hidden · 2 relu",
+    targetFn: (x1, x2) => Math.abs(x1 - x2),
     solutionFactory: () =>
-      createReluSplineSolution([
-        buildReluSplineTerm({
-          fn: (z) => z * z,
-          min: -5,
-          max: 5,
-          segments: 18,
-          inputWeights: [1, 0],
-        }),
-      ]),
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 0, weights: [1, -1] },
+          { bias: 0, weights: [-1, 1] },
+        ],
+        outputWeights: [1, 1],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
   },
   {
-    id: "product",
-    name: "Product",
-    formula: "x_1 \\cdot x_2",
-    difficulty: "Advanced",
-    par: "1 hidden · ~36 relu",
-    targetFn: (x1, x2) => x1 * x2,
+    id: "roofline_lite",
+    name: "Roofline Lite",
+    formula: "0.25x_2 + \\max(0, x_1 + 1) - 1.2\\max(0, x_1 - 0.5)",
+    difficulty: "hard",
+    par: "1 hidden · 4 relu",
+    targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 1) - 1.2 * Math.max(0, x1 - 0.5),
     solutionFactory: () =>
-      createReluSplineSolution([
-        buildReluSplineTerm({
-          fn: (z) => z * z,
-          min: -10,
-          max: 10,
-          segments: 18,
-          inputWeights: [1, 1],
-          scale: 0.25,
-        }),
-        buildReluSplineTerm({
-          fn: (z) => z * z,
-          min: -10,
-          max: 10,
-          segments: 18,
-          inputWeights: [1, -1],
-          scale: -0.25,
-        }),
-      ]),
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 0, weights: [0, 1] },
+          { bias: 0, weights: [0, -1] },
+          { bias: 1, weights: [1, 0] },
+          { bias: -0.5, weights: [1, 0] },
+        ],
+        outputWeights: [0.25, -0.25, 1, -1.2],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
   },
   {
-    id: "sine",
-    name: "Sine Wave",
-    formula: "\\sin(x_1)",
-    difficulty: "Advanced",
-    par: "1 hidden · ~26 relu",
-    targetFn: (x1) => Math.sin(x1),
+    id: "tilted_notch_lite",
+    name: "Tilted Notch Lite",
+    formula: "\\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.35\\max(0, x_1 - x_2 - 1.2)",
+    difficulty: "hard",
+    par: "1 hidden · 3 relu",
+    targetFn: (x1, x2) =>
+      Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.35 * Math.max(0, x1 - x2 - 1.2),
     solutionFactory: () =>
-      createReluSplineSolution([
-        buildReluSplineTerm({
-          fn: (z) => Math.sin(z),
-          min: -5,
-          max: 5,
-          segments: 26,
-          inputWeights: [1, 0],
-        }),
-      ]),
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 1, weights: [1, 0.5] },
+          { bias: -1, weights: [1, 0.5] },
+          { bias: -1.2, weights: [1, -1] },
+        ],
+        outputWeights: [1, -1, -0.35],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
   },
   {
-    id: "diagonal_sine",
-    name: "Diagonal Sine",
-    formula: "\\sin(x_1 + x_2)",
-    difficulty: "Expert",
-    par: "1 hidden · ~34 relu",
-    targetFn: (x1, x2) => Math.sin(x1 + x2),
+    id: "diamond_cap_lite",
+    name: "Diamond Cap Lite",
+    formula: "\\max(0, 2 - \\left|x_1 - 1\\right| - 0.6\\left|x_2 + 0.8\\right|)",
+    difficulty: "hard",
+    par: "1 hidden · 4 relu + relu output",
+    targetFn: (x1, x2) => Math.max(0, 2 - Math.abs(x1 - 1) - 0.6 * Math.abs(x2 + 0.8)),
     solutionFactory: () =>
-      createReluSplineSolution([
-        buildReluSplineTerm({
-          fn: (z) => Math.sin(z),
-          min: -10,
-          max: 10,
-          segments: 34,
-          inputWeights: [1, 1],
-        }),
-      ]),
-  },
-  {
-    id: "radial_bowl",
-    name: "Radial Bowl",
-    formula: "x_1^2 + x_2^2",
-    difficulty: "Expert",
-    par: "1 hidden · ~32 relu",
-    targetFn: (x1, x2) => x1 * x1 + x2 * x2,
-    solutionFactory: () =>
-      createReluSplineSolution([
-        buildReluSplineTerm({
-          fn: (z) => z * z,
-          min: -5,
-          max: 5,
-          segments: 16,
-          inputWeights: [1, 0],
-        }),
-        buildReluSplineTerm({
-          fn: (z) => z * z,
-          min: -5,
-          max: 5,
-          segments: 16,
-          inputWeights: [0, 1],
-        }),
-      ]),
-  },
-  {
-    id: "step_edge",
-    name: "Step Edge",
-    formula: "\\begin{cases}1,&x_1 \\ge 0\\\\-1,&x_1 < 0\\end{cases}",
-    difficulty: "Expert",
-    par: "0 hidden · tanh output",
-    targetFn: (x1) => (x1 >= 0 ? 1 : -1),
-    solutionFactory: () => createLinearSolution([2.8, 0], 0, "tanh"),
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: -1, weights: [1, 0] },
+          { bias: 1, weights: [-1, 0] },
+          { bias: 0.8, weights: [0, 1] },
+          { bias: -0.8, weights: [0, -1] },
+        ],
+        outputWeights: [-1, -1, -0.6, -0.6],
+        outputBias: 2,
+        outputActivation: "relu",
+      }),
   },
   {
     id: "offset_roofline",
     name: "Offset Roofline",
     formula: "0.25x_2 + \\max(0, x_1 + 2) - 1.6\\max(0, x_1 - 0.5) + 0.6\\max(0, x_1 - 3)",
-    difficulty: "Boss",
+    difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 4 relu",
     targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 2) - 1.6 * Math.max(0, x1 - 0.5) + 0.6 * Math.max(0, x1 - 3),
@@ -288,7 +233,7 @@ export const CHALLENGE_DEFS = [
     id: "tilted_notch",
     name: "Tilted Notch",
     formula: "\\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.5\\max(0, x_1 - x_2 - 1.5)",
-    difficulty: "Boss",
+    difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) =>
@@ -310,7 +255,7 @@ export const CHALLENGE_DEFS = [
     id: "kinked_valley",
     name: "Kinked Valley",
     formula: "\\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
-    difficulty: "Boss",
+    difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · ~5 relu",
     targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
@@ -333,7 +278,7 @@ export const CHALLENGE_DEFS = [
     id: "offcenter_diamond_cap",
     name: "Offcenter Diamond Cap",
     formula: "\\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
-    difficulty: "Boss",
+    difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · ~4 relu + relu output",
     targetFn: (x1, x2) => Math.max(0, 2.2 - Math.abs(x1 - 1.2) - 0.6 * Math.abs(x2 + 0.8)),
@@ -355,7 +300,7 @@ export const CHALLENGE_DEFS = [
     id: "diagonal_toll_booth",
     name: "Diagonal Toll Booth",
     formula: "\\max(0, x_1 - x_2 + 1.2) - \\max(0, x_1 - x_2 - 1.2) + 0.4\\max(0, x_2 + 0.5)",
-    difficulty: "Boss",
+    difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(0, x1 - x2 + 1.2) - Math.max(0, x1 - x2 - 1.2) + 0.4 * Math.max(0, x2 + 0.5),
@@ -377,7 +322,7 @@ export const CHALLENGE_DEFS = [
     name: "Three Axis Fold",
     formula:
       "0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
-    difficulty: "Boss",
+    difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 4 relu",
     hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",

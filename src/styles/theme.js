@@ -17,11 +17,11 @@ export const COLORS = {
 };
 
 export const DIFFICULTY_COLORS = {
-  Beginner: "#4ade80",
-  Intermediate: "#f59e0b",
-  Advanced: "#fb7185",
-  Expert: "#a78bfa",
-  Boss: "#38bdf8",
+  tutorial: "#34d399",
+  easy: "#60a5fa",
+  medium: "#f59e0b",
+  hard: "#ef4444",
+  insane: "#8b5cf6",
 };
 
 export const btnStyle = {

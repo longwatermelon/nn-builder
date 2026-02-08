@@ -105,7 +105,7 @@ export default function NetworkGraph({
                 const absW = Math.abs(w);
                 const opacity = Math.min(0.15 + absW * 0.3, 0.9);
                 const strokeW = Math.max(0.5, Math.min(absW * 2, 4));
-                const color = w >= 0 ? COLORS.accent : COLORS.negative;
+                const color = absW < 1e-9 ? COLORS.textMuted : w > 0 ? COLORS.accent : COLORS.negative;
                 const isSel = sel && sel.layerIdx === li && sel.neuronIdx === ni;
                 return (
                   <line

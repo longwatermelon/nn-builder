@@ -25,6 +25,9 @@ export default function ChallengeLibrary({
           const solved = Boolean(solvedChallenges[challenge.id]);
           const isSelected = challenge.id === selectedChallengeId;
           const showFormula = true;
+          const difficultyRaw = typeof challenge.difficulty === "string" ? challenge.difficulty : "unknown";
+          const difficultyLabel = difficultyRaw.charAt(0).toUpperCase() + difficultyRaw.slice(1);
+          const difficultyColor = DIFFICULTY_COLORS[difficultyRaw] ?? COLORS.textMuted;
           return (
             <button
               key={challenge.id}
@@ -50,15 +53,15 @@ export default function ChallengeLibrary({
                 <span
                   style={{
                     fontSize: 10,
-                    color: DIFFICULTY_COLORS[challenge.difficulty],
-                    border: `1px solid ${DIFFICULTY_COLORS[challenge.difficulty]}55`,
-                    background: "rgba(255,255,255,0.05)",
+                    color: difficultyColor,
+                    border: `1px solid ${difficultyColor}55`,
+                    background: `${difficultyColor}22`,
                     borderRadius: 999,
                     padding: "2px 8px",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {challenge.difficulty}
+                  {difficultyLabel}
                 </span>
               </div>
               {showFormula && (
