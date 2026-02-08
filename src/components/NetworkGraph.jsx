@@ -7,9 +7,18 @@ const SVG_W = 560;
 const PAD_X = 60;
 const PAD_Y = 30;
 const NEURON_R = 22;
-const NEURON_TOP_BUFFER = PAD_Y + 10;
-const NEURON_BOTTOM_BUFFER = PAD_Y + 20;
-const LAYER_LABEL_BOTTOM_BUFFER = 10;
+const SELECTED_NEURON_RADIUS_BOOST = 3;
+const MAX_NEURON_R = NEURON_R + SELECTED_NEURON_RADIUS_BOOST;
+const NEURON_NAME_FONT_SIZE = 9;
+const NEURON_NAME_GAP = 6;
+const NEURON_NAME_ASCENT = Math.ceil(NEURON_NAME_FONT_SIZE * 0.9);
+const NEURON_NAME_OFFSET = NEURON_R + NEURON_NAME_GAP;
+const NEURON_NAME_SAFE_MARGIN = 6;
+const NEURON_TOP_BUFFER = NEURON_NAME_OFFSET + NEURON_NAME_ASCENT + NEURON_NAME_SAFE_MARGIN + SELECTED_NEURON_RADIUS_BOOST;
+const LAYER_LABEL_FONT_SIZE = 9;
+const LAYER_LABEL_BOTTOM_BUFFER = Math.ceil(LAYER_LABEL_FONT_SIZE * 1.5);
+const LAYER_LABEL_NEURON_GAP = 10;
+const NEURON_BOTTOM_BUFFER = Math.max(PAD_Y + MAX_NEURON_R, MAX_NEURON_R + LAYER_LABEL_NEURON_GAP + LAYER_LABEL_BOTTOM_BUFFER);
 
 export default function NetworkGraph({
   layers,
@@ -147,7 +156,7 @@ export default function NetworkGraph({
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={NEURON_R + (isSel ? 3 : 0)}
+                    r={NEURON_R + (isSel ? SELECTED_NEURON_RADIUS_BOOST : 0)}
                     fill={fillColor}
                     stroke={strokeColor}
                     strokeWidth={isSel ? 2.5 : 1.5}
@@ -168,10 +177,10 @@ export default function NetworkGraph({
                   </text>
                   <text
                     x={pos.x}
-                    y={pos.y - NEURON_R - 6}
+                    y={pos.y - NEURON_NAME_OFFSET}
                     textAnchor="middle"
                     fill={COLORS.textMuted}
-                    fontSize="9"
+                    fontSize={NEURON_NAME_FONT_SIZE}
                     fontFamily="'Sora', sans-serif"
                     fontWeight="500"
                     style={{ pointerEvents: "none" }}
@@ -194,7 +203,7 @@ export default function NetworkGraph({
                 y={SVG_H - LAYER_LABEL_BOTTOM_BUFFER}
                 textAnchor="middle"
                 fill={COLORS.textMuted}
-                fontSize="9"
+                fontSize={LAYER_LABEL_FONT_SIZE}
                 fontFamily="'Sora', sans-serif"
                 fontWeight="500"
               >
