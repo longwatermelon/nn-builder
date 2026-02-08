@@ -27,17 +27,24 @@ export function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function colorMap(t) {
-  const x = clamp(t, 0, 1);
-  const v = Math.round(x * 255);
-  return [v, v, v];
-}
+const NEURON_STOPS = [
+  [18, 25, 60],
+  [30, 70, 110],
+  [0, 200, 160],
+];
 
 export function neuronColor(val, alpha = 1) {
   if (val === undefined || isNaN(val)) return `rgba(90,111,143,${alpha})`;
-  const t = 1 / (1 + Math.exp(-val * 0.5));
-  const c = colorMap(t);
-  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+  const t = clamp(1 / (1 + Math.exp(-val * 0.5)), 0, 1);
+  const scaled = t * (NEURON_STOPS.length - 1);
+  const i = Math.min(Math.floor(scaled), NEURON_STOPS.length - 2);
+  const f = scaled - i;
+  const a = NEURON_STOPS[i];
+  const b = NEURON_STOPS[i + 1];
+  const r = Math.round(a[0] + (b[0] - a[0]) * f);
+  const g = Math.round(a[1] + (b[1] - a[1]) * f);
+  const bl = Math.round(a[2] + (b[2] - a[2]) * f);
+  return `rgba(${r},${g},${bl},${alpha})`;
 }
 
 export function forwardPassFull(layers, inputValues) {

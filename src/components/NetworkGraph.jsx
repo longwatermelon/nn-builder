@@ -136,7 +136,7 @@ export default function NetworkGraph({
                   ? COLORS.inputNeuron
                   : isOutput
                     ? COLORS.outputNeuron
-                    : "#3a4f70";
+                    : "#4a6088";
               return (
                 <g key={`${li}-${ni}`} onClick={() => setSel({ layerIdx: li, neuronIdx: ni })} style={{ cursor: "pointer" }}>
                   <circle

@@ -69,11 +69,12 @@ export default function InspectorSidebar({
           inputMode="decimal"
           value={getFieldText(key, fallback)}
           onChange={(e) => updateParameterDraft(key, e.target.value)}
+          onFocus={(e) => { const t = e.target; requestAnimationFrame(() => t.select()); }}
           disabled={isRevealingSolution}
           aria-invalid={isInvalid}
           style={{
             flex: 1,
-            background: "rgba(8,12,20,0.86)",
+            background: "rgba(11,16,24,0.9)",
             border: `1px solid ${isInvalid ? COLORS.negative : COLORS.panelBorder}`,
             borderRadius: 6,
             padding: "5px 7px",
@@ -107,7 +108,7 @@ export default function InspectorSidebar({
           onClick={() => setSel(null)}
           aria-label="Clear selection"
           style={{
-            background: "rgba(8,12,20,0.6)",
+            background: "rgba(11,16,24,0.7)",
             border: `1px solid ${COLORS.panelBorder}`,
             borderRadius: 6,
             color: COLORS.textMuted,
@@ -122,7 +123,7 @@ export default function InspectorSidebar({
 
       <div
         style={{
-          background: "rgba(8,12,20,0.72)",
+          background: "rgba(11,16,24,0.8)",
           borderRadius: 8,
           padding: 9,
           marginBottom: 10,

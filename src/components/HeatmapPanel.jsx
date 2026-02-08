@@ -116,7 +116,7 @@ export default function HeatmapPanel({
               style={{
                 height: 12,
                 borderRadius: 999,
-                background: "#1f2a40",
+                background: "#1e2d48",
                 border: `1px solid ${COLORS.panelBorder}`,
                 overflow: "hidden",
               }}

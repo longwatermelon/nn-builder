@@ -4,10 +4,26 @@ import { clamp, fmt } from "./networkMath";
 export const GRID = 100;
 export const DOMAIN = [-5, 5];
 
+const VIRIDIS_STOPS = [
+  [68, 1, 84],
+  [59, 82, 139],
+  [33, 145, 140],
+  [94, 201, 98],
+  [253, 231, 37],
+];
+
 function colorMap(t) {
   const x = clamp(t, 0, 1);
-  const v = Math.round(x * 255);
-  return [v, v, v];
+  const scaled = x * (VIRIDIS_STOPS.length - 1);
+  const i = Math.min(Math.floor(scaled), VIRIDIS_STOPS.length - 2);
+  const f = scaled - i;
+  const a = VIRIDIS_STOPS[i];
+  const b = VIRIDIS_STOPS[i + 1];
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * f),
+    Math.round(a[1] + (b[1] - a[1]) * f),
+    Math.round(a[2] + (b[2] - a[2]) * f),
+  ];
 }
 
 export function computeGrid(sampleFn) {
@@ -102,7 +118,7 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
   ctx.putImageData(img, 0, 0);
 
   if (showAxes) {
-    ctx.strokeStyle = "rgba(200,212,232,0.3)";
+    ctx.strokeStyle = "rgba(220,230,245,0.4)";
     ctx.lineWidth = 1;
     const cx = (plotW * (0 - DOMAIN[0])) / (DOMAIN[1] - DOMAIN[0]);
     const cy = h * (1 - (0 - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0]));

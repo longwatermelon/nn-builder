@@ -15,7 +15,7 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #304b72 transparent;
+  scrollbar-color: #3a5580 transparent;
 }
 
 *::-webkit-scrollbar {
@@ -28,13 +28,13 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #304b72;
+  background: #3a5580;
   border: 2px solid transparent;
   border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #3f6293;
+  background: #4d6ea0;
 }
 
 *::-webkit-scrollbar-corner {
@@ -52,5 +52,5 @@ body,
 html,
 body {
   overflow: hidden;
-  background: #080c14;
+  background: #0b1018;
 }

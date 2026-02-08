@@ -52,7 +52,7 @@ export default function ChallengeLibrary({
                     fontSize: 10,
                     color: DIFFICULTY_COLORS[challenge.difficulty],
                     border: `1px solid ${DIFFICULTY_COLORS[challenge.difficulty]}55`,
-                    background: "rgba(255,255,255,0.02)",
+                    background: "rgba(255,255,255,0.05)",
                     borderRadius: 999,
                     padding: "2px 8px",
                     whiteSpace: "nowrap",
