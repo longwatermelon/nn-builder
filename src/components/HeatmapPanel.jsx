@@ -1,7 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DOMAIN, GRID, drawHeatmap } from "../lib/heatmap";
 import MathText from "./MathText";
 import { COLORS, subtleBtnStyle } from "../styles/theme";
+
+async function copyTextToClipboard(text) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // fallback to execCommand when clipboard api write fails
+    }
+  }
+  if (typeof document === "undefined") throw new Error("Clipboard is unavailable.");
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textArea);
+  if (!copied) throw new Error("Clipboard copy failed.");
+}
 
 export default function HeatmapPanel({
   challengeComparisonActive,
@@ -22,6 +44,29 @@ export default function HeatmapPanel({
 }) {
   const userCanvasRef = useRef(null);
   const targetCanvasRef = useRef(null);
+  const formulaCopyTimeoutRef = useRef(null);
+  const [copiedFormulaChallengeId, setCopiedFormulaChallengeId] = useState(null);
+
+  useEffect(
+    () => () => {
+      if (formulaCopyTimeoutRef.current) clearTimeout(formulaCopyTimeoutRef.current);
+    },
+    []
+  );
+
+  const handleCopyFormula = async () => {
+    if (!activeChallenge?.formula) return;
+    try {
+      await copyTextToClipboard(activeChallenge.formula);
+      setCopiedFormulaChallengeId(activeChallenge.id);
+      if (formulaCopyTimeoutRef.current) clearTimeout(formulaCopyTimeoutRef.current);
+      formulaCopyTimeoutRef.current = setTimeout(() => {
+        setCopiedFormulaChallengeId(null);
+      }, 1400);
+    } catch {
+      window.alert("Unable to copy formula to clipboard.");
+    }
+  };
 
   useEffect(() => {
     drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, {
@@ -73,25 +118,42 @@ export default function HeatmapPanel({
 
       {challengeComparisonActive && activeChallenge && (
         <>
-          <div style={{ width: "100%", position: "relative" }}>
-            <div style={{ textAlign: "center", padding: "0 90px" }}>
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
               <MathText tex={activeChallenge.formula} style={{ fontSize: 16, color: "#fff", fontWeight: 600 }} />
               {activeChallenge.hint && <div style={{ fontSize: 12, color: COLORS.accent, marginTop: 5 }}>Hint: {activeChallenge.hint}</div>}
             </div>
-            <button
-              onClick={handleShowSolution}
-              disabled={isRevealingSolution || isSolutionRevealed}
-              style={{
-                ...subtleBtnStyle,
-                position: "absolute",
-                right: 0,
-                top: 0,
-                opacity: isRevealingSolution || isSolutionRevealed ? 0.6 : 1,
-                cursor: isRevealingSolution || isSolutionRevealed ? "default" : "pointer",
-              }}
-            >
-              {isRevealingSolution ? "Revealing..." : isSolutionRevealed ? "Solution Shown" : "Show Solution"}
-            </button>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={handleCopyFormula}
+                style={{
+                  ...subtleBtnStyle,
+                  color: copiedFormulaChallengeId === activeChallenge.id ? COLORS.success : COLORS.accent,
+                  borderColor:
+                    copiedFormulaChallengeId === activeChallenge.id ? `${COLORS.success}70` : `${COLORS.accent}50`,
+                }}
+              >
+                {copiedFormulaChallengeId === activeChallenge.id ? "Copied LaTeX" : "Copy LaTeX"}
+              </button>
+              <button
+                onClick={handleShowSolution}
+                disabled={isRevealingSolution || isSolutionRevealed}
+                style={{
+                  ...subtleBtnStyle,
+                  opacity: isRevealingSolution || isSolutionRevealed ? 0.6 : 1,
+                  cursor: isRevealingSolution || isSolutionRevealed ? "default" : "pointer",
+                }}
+              >
+                {isRevealingSolution ? "Revealing..." : isSolutionRevealed ? "Solution Shown" : "Show Solution"}
+              </button>
+            </div>
           </div>
 
           <div

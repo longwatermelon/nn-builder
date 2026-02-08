@@ -30,6 +30,24 @@ import {
 } from "./lib/networkMath";
 import { btnStyle, COLORS, smallBtnStyle } from "./styles/theme";
 
+async function copyTextToClipboard(text) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  if (typeof document === "undefined") throw new Error("Clipboard is unavailable.");
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textArea);
+  if (!copied) throw new Error("Clipboard copy failed.");
+}
+
 function countNetworkWeights(layers) {
   return layers.reduce((sum, layer, layerIdx) => {
     if (layerIdx === 0) return sum;
@@ -127,7 +145,16 @@ export default function App() {
   const layersRef = useRef(layers);
   const inputValuesRef = useRef(inputValues);
   const parameterDraftsRef = useRef(parameterDrafts);
+  const importMenuRef = useRef(null);
+  const exportMenuRef = useRef(null);
   const importFileInputRef = useRef(null);
+
+  const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isImportTextModalOpen, setIsImportTextModalOpen] = useState(false);
+  const [importTextValue, setImportTextValue] = useState("");
+  const [importTextError, setImportTextError] = useState("");
+  const [validatedImport, setValidatedImport] = useState(null);
 
   const challengeCatalog = useMemo(
     () =>
@@ -234,6 +261,20 @@ export default function App() {
       // ignore storage write failures
     }
   }, [solvedChallenges]);
+
+  useEffect(() => {
+    if (!isImportMenuOpen && !isExportMenuOpen) return;
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (importMenuRef.current?.contains(target) || exportMenuRef.current?.contains(target)) return;
+      setIsImportMenuOpen(false);
+      setIsExportMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isImportMenuOpen, isExportMenuOpen]);
 
   useEffect(() => {
     if (!challengeComparisonActive || !activeChallenge) return;
@@ -535,14 +576,59 @@ export default function App() {
     setSel(null);
   };
 
-  const handleExportNetwork = () => {
+  const applyImportedNetwork = useCallback(
+    (imported) => {
+      cancelRevealAnimation();
+      setLayers(imported.layers);
+      setInputValues(imported.inputValues);
+      setIsRevealingSolution(false);
+      setIsSolutionRevealed(false);
+      setRevealSolvedLockId(null);
+      setSavedAttempt(null);
+      setIsMatchCelebrating(false);
+      prevChallengeScoreRef.current = 0;
+      setSel(null);
+    },
+    [cancelRevealAnimation]
+  );
+
+  const parseImportedNetworkFromRawText = useCallback((rawText) => {
+    if (typeof rawText !== "string" || rawText.trim().length === 0) {
+      return { valid: false, error: "JSON text is empty." };
+    }
+    if (new Blob([rawText]).size > NETWORK_IMPORT_LIMITS.maxFileBytes) {
+      return { valid: false, error: `JSON is too large (max ${NETWORK_IMPORT_LIMITS.maxFileBytes} bytes).` };
+    }
+
+    try {
+      const parsedJson = JSON.parse(rawText);
+      const imported = parseNetworkImportPayload(parsedJson);
+      if (!imported.valid) return { valid: false, error: imported.error };
+      return { valid: true, imported };
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return { valid: false, error: "Text is not valid JSON." };
+      }
+      return { valid: false, error: "Unable to read JSON text." };
+    }
+  }, []);
+
+  const getValidatedExportNetworkJson = useCallback(() => {
     const payload = createNetworkExportPayload(layersRef.current, inputValuesRef.current);
     const validation = parseNetworkImportPayload(payload);
     if (!validation.valid) {
-      window.alert(`Export blocked: ${validation.error}`);
+      return { valid: false, error: validation.error };
+    }
+    return { valid: true, json: JSON.stringify(payload, null, 2) };
+  }, []);
+
+  const handleExportNetworkFile = () => {
+    const exportResult = getValidatedExportNetworkJson();
+    if (!exportResult.valid) {
+      window.alert(`Export blocked: ${exportResult.error}`);
       return;
     }
-    const json = JSON.stringify(payload, null, 2);
+    const json = exportResult.json;
     const blob = new Blob([json], { type: "application/json" });
     const objectUrl = URL.createObjectURL(blob);
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -557,8 +643,58 @@ export default function App() {
     }, 0);
   };
 
-  const handleImportClick = () => {
+  const handleExportNetworkCopy = async () => {
+    const exportResult = getValidatedExportNetworkJson();
+    if (!exportResult.valid) {
+      window.alert(`Export blocked: ${exportResult.error}`);
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(exportResult.json);
+      window.alert("Network JSON copied to clipboard.");
+    } catch {
+      window.alert("Export failed: unable to copy JSON to clipboard.");
+    }
+  };
+
+  const handleImportFromFile = () => {
+    setIsImportMenuOpen(false);
     importFileInputRef.current?.click();
+  };
+
+  const handleOpenImportTextModal = () => {
+    setIsImportMenuOpen(false);
+    setIsImportTextModalOpen(true);
+    setImportTextValue("");
+    setImportTextError("");
+    setValidatedImport(null);
+  };
+
+  const handleValidateImportText = () => {
+    const result = parseImportedNetworkFromRawText(importTextValue);
+    if (!result.valid) {
+      setValidatedImport(null);
+      setImportTextError(result.error);
+      return;
+    }
+    setValidatedImport(result.imported);
+    setImportTextError("");
+  };
+
+  const handleConfirmImportText = () => {
+    if (!validatedImport) return;
+    const result = parseImportedNetworkFromRawText(importTextValue);
+    if (!result.valid) {
+      setValidatedImport(null);
+      setImportTextError(result.error);
+      return;
+    }
+    applyImportedNetwork(result.imported);
+    setIsImportTextModalOpen(false);
+    setImportTextValue("");
+    setImportTextError("");
+    setValidatedImport(null);
   };
 
   const handleImportNetworkFile = async (event) => {
@@ -573,25 +709,15 @@ export default function App() {
 
     try {
       const rawText = await file.text();
-      const parsedJson = JSON.parse(rawText);
-      const imported = parseNetworkImportPayload(parsedJson);
-      if (!imported.valid) {
-        window.alert(`Import failed: ${imported.error}`);
+      const result = parseImportedNetworkFromRawText(rawText);
+      if (!result.valid) {
+        window.alert(`Import failed: ${result.error}`);
         return;
       }
       const confirmed = window.confirm("Import this network JSON? Your current network will be replaced.");
       if (!confirmed) return;
 
-      cancelRevealAnimation();
-      setLayers(imported.layers);
-      setInputValues(imported.inputValues);
-      setIsRevealingSolution(false);
-      setIsSolutionRevealed(false);
-      setRevealSolvedLockId(null);
-      setSavedAttempt(null);
-      setIsMatchCelebrating(false);
-      prevChallengeScoreRef.current = 0;
-      setSel(null);
+      applyImportedNetwork(result.imported);
     } catch (error) {
       if (error instanceof SyntaxError) {
         window.alert("Import failed: file is not valid JSON.");
@@ -599,6 +725,22 @@ export default function App() {
       }
       window.alert("Import failed: unable to read file.");
     }
+  };
+
+  const menuStyle = {
+    position: "absolute",
+    top: "calc(100% + 6px)",
+    right: 0,
+    zIndex: 20,
+    minWidth: 120,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    padding: 6,
+    background: COLORS.panel,
+    border: `1px solid ${COLORS.panelBorder}`,
+    borderRadius: 8,
+    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
   };
 
   return (
@@ -678,12 +820,60 @@ export default function App() {
             onChange={handleImportNetworkFile}
             style={{ display: "none" }}
           />
-          <button onClick={handleImportClick} style={btnStyle}>
-            Import JSON
-          </button>
-          <button onClick={handleExportNetwork} style={btnStyle}>
-            Export JSON
-          </button>
+          <div ref={importMenuRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => {
+                setIsImportMenuOpen((prev) => !prev);
+                setIsExportMenuOpen(false);
+              }}
+              style={btnStyle}
+            >
+              Import JSON ▾
+            </button>
+            {isImportMenuOpen && (
+              <div style={menuStyle}>
+                <button onClick={handleOpenImportTextModal} style={btnStyle}>
+                  Text
+                </button>
+                <button onClick={handleImportFromFile} style={btnStyle}>
+                  File
+                </button>
+              </div>
+            )}
+          </div>
+          <div ref={exportMenuRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => {
+                setIsExportMenuOpen((prev) => !prev);
+                setIsImportMenuOpen(false);
+              }}
+              style={btnStyle}
+            >
+              Export JSON ▾
+            </button>
+            {isExportMenuOpen && (
+              <div style={menuStyle}>
+                <button
+                  onClick={async () => {
+                    await handleExportNetworkCopy();
+                    setIsExportMenuOpen(false);
+                  }}
+                  style={btnStyle}
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => {
+                    handleExportNetworkFile();
+                    setIsExportMenuOpen(false);
+                  }}
+                  style={btnStyle}
+                >
+                  File
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={randomizeAll} style={btnStyle}>
             ⟳ Randomize
           </button>
@@ -864,6 +1054,93 @@ export default function App() {
           />
         </div>
       </div>
+
+      {isImportTextModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+            background: "rgba(5, 8, 16, 0.72)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 18,
+          }}
+        >
+          <div
+            style={{
+              width: "min(720px, 100%)",
+              background: COLORS.panel,
+              border: `1px solid ${COLORS.panelBorder}`,
+              borderRadius: 12,
+              padding: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textBright }}>Import JSON from text</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+              Paste a network JSON payload, validate it, then confirm import.
+            </div>
+            <textarea
+              value={importTextValue}
+              onChange={(event) => {
+                setImportTextValue(event.target.value);
+                setImportTextError("");
+                setValidatedImport(null);
+              }}
+              placeholder='{"schema":"nn-builder/network", ...}'
+              spellCheck={false}
+              style={{
+                width: "100%",
+                minHeight: 230,
+                resize: "vertical",
+                background: COLORS.bg,
+                color: COLORS.text,
+                border: `1px solid ${COLORS.panelBorder}`,
+                borderRadius: 8,
+                padding: 10,
+                fontSize: 12,
+                lineHeight: 1.5,
+                outline: "none",
+                fontFamily: "'DM Mono', monospace",
+              }}
+            />
+            {importTextError && <div style={{ fontSize: 12, color: COLORS.negative }}>Validation failed: {importTextError}</div>}
+            {validatedImport && (
+              <div style={{ fontSize: 12, color: COLORS.success }}>
+                Valid network JSON detected. You can now confirm the import.
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  setIsImportTextModalOpen(false);
+                  setImportTextValue("");
+                  setImportTextError("");
+                  setValidatedImport(null);
+                }}
+                style={btnStyle}
+              >
+                Cancel
+              </button>
+              <button onClick={handleValidateImportText} style={btnStyle}>
+                Validate JSON
+              </button>
+              {validatedImport && (
+                <button
+                  onClick={handleConfirmImportText}
+                  style={{ ...btnStyle, borderColor: `${COLORS.accent}60`, color: COLORS.accent }}
+                >
+                  Confirm Import
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
