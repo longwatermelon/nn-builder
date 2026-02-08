@@ -7,7 +7,6 @@ import { getScoreColor, getScoreLabel, MATCH_SCORE_THRESHOLD } from "./features/
 import { copyTextToClipboard } from "./lib/clipboard";
 import { computeGrid, computeMSE, computeVariance } from "./lib/heatmap";
 import {
-  ACT_FNS,
   DEFAULT_INPUT_VALUES,
   NETWORK_IMPORT_LIMITS,
   REVEAL_DURATION_MS,
@@ -36,7 +35,7 @@ import {
   buildLayersWithRemovedNeuron,
   countNetworkWeights,
 } from "./lib/networkStructure";
-import { btnStyle, COLORS, smallBtnStyle } from "./styles/theme";
+import { btnStyle, COLORS } from "./styles/theme";
 
 const menuStyle = {
   position: "absolute",
@@ -828,123 +827,6 @@ export default function App() {
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", padding: 16, gap: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              padding: "10px 14px",
-              background: COLORS.panel,
-              borderRadius: 10,
-              border: `1px solid ${COLORS.panelBorder}`,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: COLORS.textMuted,
-                letterSpacing: 1,
-                textTransform: "uppercase",
-                marginRight: 4,
-              }}
-            >
-              Layers
-            </span>
-            {layers.map((layer, i) => {
-              const isInput = i === 0;
-              const isOutput = i === layers.length - 1;
-              const label = isInput ? "Input (2)" : isOutput ? "Output (1)" : `Hidden ${i}`;
-              const size = isInput ? layer.neuronCount : layer.neurons.length;
-              return (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    background: COLORS.surface,
-                    borderRadius: 8,
-                    padding: "4px 8px",
-                    border: `1px solid ${COLORS.panelBorder}`,
-                  }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.text, marginRight: 2 }}>{label}</span>
-                  {!isInput && (
-                    <select
-                      value={layer.activation}
-                      onChange={(e) => setLayerActivation(i, e.target.value)}
-                      style={{
-                        background: COLORS.bg,
-                        color: COLORS.accent,
-                        border: `1px solid ${COLORS.panelBorder}`,
-                        borderRadius: 4,
-                        padding: "2px 4px",
-                        fontSize: 10,
-                        fontFamily: "'DM Mono', monospace",
-                        outline: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {Object.entries(ACT_FNS).map(([key, value]) => (
-                        <option key={key} value={key}>
-                          {value.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {!isInput && !isOutput && (
-                    <>
-                      <button
-                        onClick={() => removeNeuron(i, layer.neurons.length - 1)}
-                        style={smallBtnStyle}
-                        title="Remove neuron"
-                        disabled={layer.neurons.length <= 1}
-                      >
-                        −
-                      </button>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: COLORS.textMuted,
-                          fontFamily: "'DM Mono', monospace",
-                          minWidth: 14,
-                          textAlign: "center",
-                        }}
-                      >
-                        {size}
-                      </span>
-                      <button onClick={() => addNeuron(i)} style={smallBtnStyle} title="Add neuron">
-                        +
-                      </button>
-                      <button
-                        onClick={() => removeLayer(i)}
-                        style={{ ...smallBtnStyle, color: COLORS.negative, borderColor: `${COLORS.negative}40` }}
-                        title="Remove layer"
-                      >
-                        ✕
-                      </button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-            <button
-              onClick={addHiddenLayer}
-              style={{
-                ...btnStyle,
-                fontSize: 11,
-                padding: "4px 10px",
-                background: COLORS.accentDim,
-                color: COLORS.accent,
-                borderColor: `${COLORS.accent}40`,
-              }}
-            >
-              + Hidden Layer
-            </button>
-          </div>
-
           <NetworkView
             layers={layers}
             layerSizes={layerSizes}
@@ -957,6 +839,11 @@ export default function App() {
             draftValidityByKey={draftValidity.byKey}
             isRevealingSolution={isRevealingSolution}
             updateParameterDraft={updateParameterDraft}
+            setLayerActivation={setLayerActivation}
+            addNeuron={addNeuron}
+            removeNeuron={removeNeuron}
+            removeLayer={removeLayer}
+            addHiddenLayer={addHiddenLayer}
           />
 
           <ResultsPanel
