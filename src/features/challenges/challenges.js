@@ -31,6 +31,48 @@ function createSingleHiddenSolution({
   ];
 }
 
+function createInterpretableReluProductSolution() {
+  const thresholds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const hingeCoefficients = thresholds.map((threshold) => (threshold === 0 ? 1 : 2));
+  const projectionSigns = [1, -1, -1];
+
+  const layer1Neurons = [
+    { bias: 0, weights: [1, 1] },
+    { bias: 0, weights: [-1, -1] },
+    { bias: 0, weights: [1, 0] },
+    { bias: 0, weights: [-1, 0] },
+    { bias: 0, weights: [0, 1] },
+    { bias: 0, weights: [0, -1] },
+  ];
+
+  const layer2Neurons = [
+    { bias: 0, weights: [1, 1, 0, 0, 0, 0] },
+    { bias: 0, weights: [0, 0, 1, 1, 0, 0] },
+    { bias: 0, weights: [0, 0, 0, 0, 1, 1] },
+  ];
+
+  const layer3Neurons = [];
+  const outputWeights = [];
+
+  for (let sourceIdx = 0; sourceIdx < projectionSigns.length; sourceIdx++) {
+    for (let i = 0; i < thresholds.length; i++) {
+      const threshold = thresholds[i];
+      const weights = [0, 0, 0];
+      weights[sourceIdx] = 1;
+      layer3Neurons.push({ bias: -threshold, weights });
+      outputWeights.push(0.5 * projectionSigns[sourceIdx] * hingeCoefficients[i]);
+    }
+  }
+
+  return [
+    { type: "input", activation: "linear", neuronCount: 2 },
+    { type: "hidden", activation: "relu", neurons: layer1Neurons },
+    { type: "hidden", activation: "linear", neurons: layer2Neurons },
+    { type: "hidden", activation: "relu", neurons: layer3Neurons },
+    { type: "output", activation: "linear", neurons: [{ bias: 0, weights: outputWeights }] },
+  ];
+}
+
 export const CHALLENGE_DEFS = [
   {
     id: "identity",
@@ -264,65 +306,9 @@ export const CHALLENGE_DEFS = [
     name: "Input Product",
     formula: "f(x_1, x_2) = x_1 \\cdot x_2",
     difficulty: "exploratory",
+    hint: "Build |x+y|, |x|, |y|, then approximate squares with ReLU hinges.",
     targetFn: (x1, x2) => x1 * x2,
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "tanh",
-        hiddenNeurons: [
-          { bias: -2.904888, weights: [-0.314079, -0.295811] },
-          { bias: 2.381941, weights: [0.254961, -0.253669] },
-          { bias: 1.890172, weights: [0.326464, -0.328184] },
-          { bias: 3.515096, weights: [0.357379, 0.370763] },
-          { bias: 2.01778, weights: [-0.296612, -0.293733] },
-          { bias: 2.928578, weights: [-0.299237, 0.317606] },
-          { bias: 2.557093, weights: [0.273685, -0.262489] },
-          { bias: 3.033708, weights: [0.314292, 0.319684] },
-          { bias: -1.148406, weights: [0.294619, 0.294989] },
-          { bias: 3.120427, weights: [0.32011, -0.314567] },
-          { bias: 2.108572, weights: [0.2316, -0.237778] },
-          { bias: -2.318838, weights: [-0.248813, 0.250302] },
-          { bias: -3.107367, weights: [0.330991, 0.311662] },
-          { bias: 2.408475, weights: [-0.275003, 0.262526] },
-          { bias: 2.822153, weights: [-0.274546, -0.314587] },
-          { bias: 1.036625, weights: [-0.300875, 0.302046] },
-          { bias: -3.30679, weights: [-0.326104, 0.34388] },
-          { bias: 1.039322, weights: [0.303444, -0.303764] },
-          { bias: 2.135306, weights: [0.313359, 0.315551] },
-          { bias: 3.845866, weights: [-0.403084, 0.38476] },
-          { bias: -2.821476, weights: [0.293265, -0.305792] },
-          { bias: 3.125648, weights: [-0.332829, -0.31334] },
-          { bias: 1.149576, weights: [0.292417, 0.293063] },
-          { bias: -2.03977, weights: [0.337836, -0.336227] },
-        ],
-        outputWeights: [
-          3.634216,
-          2.308945,
-          2.343795,
-          -3.704366,
-          -3.719146,
-          2.9709,
-          2.305849,
-          -3.531657,
-          3.687381,
-          2.852449,
-          2.42927,
-          -2.508158,
-          3.802508,
-          2.980856,
-          -3.812572,
-          3.01127,
-          -2.599527,
-          2.59633,
-          -3.573043,
-          3.626878,
-          -2.959818,
-          -3.75151,
-          -3.932598,
-          -3.149955,
-        ],
-        outputBias: -1.456801,
-        outputActivation: "linear",
-      }),
+    solutionFactory: () => createInterpretableReluProductSolution(),
   },
   {
     id: "sine_wave",
