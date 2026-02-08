@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import ChallengeLibrary from "./components/ChallengeLibrary";
-import HeatmapPanel from "./components/HeatmapPanel";
-import NetworkGraph from "./components/NetworkGraph";
+import ResultsPanel from "./components/ResultsPanel";
+import NetworkView from "./components/NetworkView";
 import { CHALLENGE_DEFS } from "./features/challenges/challenges";
-import { getScoreColor, getScoreLabel } from "./features/challenges/score";
+import { getScoreColor, getScoreLabel, MATCH_SCORE_THRESHOLD } from "./features/challenges/score";
+import { copyTextToClipboard } from "./lib/clipboard";
 import { computeGrid, computeMSE, computeVariance } from "./lib/heatmap";
 import {
   ACT_FNS,
@@ -28,90 +29,30 @@ import {
   reconcileParameterDrafts,
   zeroLayersLike,
 } from "./lib/networkMath";
+import {
+  buildLayersWithAddedHiddenLayer,
+  buildLayersWithAddedNeuron,
+  buildLayersWithRemovedLayer,
+  buildLayersWithRemovedNeuron,
+  countNetworkWeights,
+} from "./lib/networkStructure";
 import { btnStyle, COLORS, smallBtnStyle } from "./styles/theme";
 
-async function copyTextToClipboard(text) {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-  if (typeof document === "undefined") throw new Error("Clipboard is unavailable.");
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.setAttribute("readonly", "");
-  textArea.style.position = "fixed";
-  textArea.style.opacity = "0";
-  document.body.appendChild(textArea);
-  textArea.select();
-  const copied = document.execCommand("copy");
-  document.body.removeChild(textArea);
-  if (!copied) throw new Error("Clipboard copy failed.");
-}
-
-function countNetworkWeights(layers) {
-  return layers.reduce((sum, layer, layerIdx) => {
-    if (layerIdx === 0) return sum;
-    return sum + layer.neurons.reduce((layerSum, neuron) => layerSum + neuron.weights.length, 0);
-  }, 0);
-}
-
-function buildLayersWithAddedHiddenLayer(layers) {
-  const outIdx = layers.length - 1;
-  const prevLayer = layers[outIdx - 1];
-  const prevSize = outIdx - 1 === 0 ? layers[0].neuronCount : prevLayer.neurons.length;
-  const newCount = 3;
-  const newLayer = {
-    type: "hidden",
-    activation: "relu",
-    neurons: Array.from({ length: newCount }, () => ({
-      bias: 0,
-      weights: Array(prevSize).fill(0),
-    })),
-  };
-  const newOutput = {
-    ...layers[outIdx],
-    neurons: layers[outIdx].neurons.map((n) => ({
-      ...n,
-      weights: Array(newCount).fill(0),
-    })),
-  };
-  return [...layers.slice(0, outIdx), newLayer, newOutput];
-}
-
-function buildLayersWithAddedNeuron(layers, layerIdx) {
-  return layers.map((layer, i) => {
-    if (i === layerIdx) {
-      const prevSize = i === 1 ? layers[0].neuronCount : layers[i - 1].neurons.length;
-      return {
-        ...layer,
-        neurons: [...layer.neurons, { bias: 0, weights: Array(prevSize).fill(0) }],
-      };
-    }
-    if (i === layerIdx + 1) {
-      return {
-        ...layer,
-        neurons: layer.neurons.map((n) => ({ ...n, weights: [...n.weights, 0] })),
-      };
-    }
-    return layer;
-  });
-}
-
-function buildLayersWithRemovedLayer(layers, idx) {
-  const prevSize = idx === 1 ? layers[0].neuronCount : layers[idx - 1].neurons.length;
-  const next = [...layers];
-  next.splice(idx, 1);
-  if (idx < next.length) {
-    next[idx] = {
-      ...next[idx],
-      neurons: next[idx].neurons.map((n) => ({
-        ...n,
-        weights: Array(prevSize).fill(0),
-      })),
-    };
-  }
-  return next;
-}
+const menuStyle = {
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  right: 0,
+  zIndex: 20,
+  minWidth: 120,
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  padding: 6,
+  background: COLORS.panel,
+  border: `1px solid ${COLORS.panelBorder}`,
+  borderRadius: 8,
+  boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+};
 
 export default function App() {
   const [layers, setLayers] = useState(createInitialNetwork);
@@ -156,6 +97,7 @@ export default function App() {
   const [importTextError, setImportTextError] = useState("");
   const [validatedImport, setValidatedImport] = useState(null);
 
+  // precompute challenge targets once for stable scoring
   const challengeCatalog = useMemo(
     () =>
       CHALLENGE_DEFS.map((challenge) => {
@@ -172,6 +114,7 @@ export default function App() {
     []
   );
 
+  // refs keep async callbacks synced with current state
   useLayoutEffect(() => {
     layersRef.current = layers;
     inputValuesRef.current = inputValues;
@@ -182,8 +125,9 @@ export default function App() {
     () => challengeCatalog.find((c) => c.id === selectedChallengeId) ?? null,
     [challengeCatalog, selectedChallengeId]
   );
-  const challengeComparisonActive = Boolean(activeChallenge);
+  const isChallengeSelected = Boolean(activeChallenge);
 
+  // mark invalid draft fields so edits can pause safely
   const draftValidity = useMemo(() => {
     const canonicalDrafts = buildParameterDrafts(layers, inputValues);
     const byKey = {};
@@ -200,6 +144,11 @@ export default function App() {
     () => layers.map((layer) => (layer.type === "input" ? layer.neuronCount : layer.neurons.length)),
     [layers]
   );
+  const hiddenLayerCount = Math.max(0, layers.length - 2);
+  const totalNeuronCount = useMemo(
+    () => layers.reduce((sum, layer, index) => sum + (index === 0 ? layer.neuronCount : layer.neurons.length), 0),
+    [layers]
+  );
 
   const { activations, preActivations } = useMemo(
     () => forwardPassFull(layers, inputValues),
@@ -209,14 +158,14 @@ export default function App() {
   const networkGrid = useMemo(() => computeGrid((x1, x2) => computeOutput(layers, x1, x2)), [layers]);
 
   const heatmapScale = useMemo(() => {
-    if (challengeComparisonActive && activeChallenge) {
+    if (isChallengeSelected && activeChallenge) {
       return {
         min: Math.min(networkGrid.min, activeChallenge.targetGrid.min),
         max: Math.max(networkGrid.max, activeChallenge.targetGrid.max),
       };
     }
     return { min: networkGrid.min, max: networkGrid.max };
-  }, [challengeComparisonActive, activeChallenge, networkGrid.min, networkGrid.max]);
+  }, [isChallengeSelected, activeChallenge, networkGrid.min, networkGrid.max]);
 
   const challengeScore = useMemo(() => {
     if (!activeChallenge) return 0;
@@ -230,7 +179,7 @@ export default function App() {
   const challengeScoreDisplay = Math.floor(challengeScore * 100) / 100;
   const scoreLabel = getScoreLabel(challengeScore);
   const scoreColor = getScoreColor(challengeScore);
-  const scoreGlow = challengeScore >= 95 && (isMatchCelebrating || isRevealingSolution);
+  const scoreGlow = challengeScore >= MATCH_SCORE_THRESHOLD && (isMatchCelebrating || isRevealingSolution);
   const canRestoreAttempt = savedAttempt?.challengeId === activeChallenge?.id;
 
   const cancelRevealAnimation = useCallback(() => {
@@ -240,19 +189,45 @@ export default function App() {
     }
   }, []);
 
+  // clear transient challenge state before loading a new network state
+  const resetChallengeRuntimeState = useCallback(
+    ({ clearSavedAttempt = false, clearRevealSolvedLock = true } = {}) => {
+      cancelRevealAnimation();
+      setIsRevealingSolution(false);
+      setIsSolutionRevealed(false);
+      if (clearRevealSolvedLock) setRevealSolvedLockId(null);
+      setIsMatchCelebrating(false);
+      prevChallengeScoreRef.current = 0;
+      if (clearSavedAttempt) setSavedAttempt(null);
+    },
+    [cancelRevealAnimation]
+  );
+
+  // keep import modal fields in sync when opening or closing
+  const resetImportTextState = useCallback(() => {
+    setImportTextValue("");
+    setImportTextError("");
+    setValidatedImport(null);
+  }, []);
+
+  // lazy-load fonts once so inline styles can use them
   useEffect(() => {
+    if (document.getElementById("nn-builder-fonts")) return;
     const link = document.createElement("link");
+    link.id = "nn-builder-fonts";
     link.href = "https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }, []);
 
+  // keep field drafts aligned with canonical values after graph edits
   useLayoutEffect(() => {
     if (isRevealingSolution) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setParameterDrafts((prev) => reconcileParameterDrafts(prev, layers, inputValues));
   }, [layers, inputValues, isRevealingSolution]);
 
+  // persist solved challenge ids for future sessions
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -262,6 +237,7 @@ export default function App() {
     }
   }, [solvedChallenges]);
 
+  // close json menus when clicking outside either menu container
   useEffect(() => {
     if (!isImportMenuOpen && !isExportMenuOpen) return;
     const handlePointerDown = (event) => {
@@ -276,11 +252,12 @@ export default function App() {
     };
   }, [isImportMenuOpen, isExportMenuOpen]);
 
+  // auto-mark solved when the live score crosses the match threshold
   useEffect(() => {
-    if (!challengeComparisonActive || !activeChallenge) return;
+    if (!isChallengeSelected || !activeChallenge) return;
     if (isRevealingSolution || isSolutionRevealed) return;
     if (revealSolvedLockId === activeChallenge.id) return;
-    if (challengeScore < 95) return;
+    if (challengeScore < MATCH_SCORE_THRESHOLD) return;
     const markSolvedTimer = setTimeout(() => {
       setSolvedChallenges((prev) => {
         if (prev[activeChallenge.id]) return prev;
@@ -289,7 +266,7 @@ export default function App() {
     }, 0);
     return () => clearTimeout(markSolvedTimer);
   }, [
-    challengeComparisonActive,
+    isChallengeSelected,
     activeChallenge,
     challengeScore,
     isRevealingSolution,
@@ -297,18 +274,20 @@ export default function App() {
     revealSolvedLockId,
   ]);
 
+  // clear reveal lock once the score drops below the match threshold
   useEffect(() => {
     if (!activeChallenge || revealSolvedLockId !== activeChallenge.id) return;
     if (isRevealingSolution || isSolutionRevealed) return;
-    if (challengeScore >= 95) return;
+    if (challengeScore >= MATCH_SCORE_THRESHOLD) return;
     const unlockTimer = setTimeout(() => {
       setRevealSolvedLockId(null);
     }, 0);
     return () => clearTimeout(unlockTimer);
   }, [activeChallenge, revealSolvedLockId, challengeScore, isRevealingSolution, isSolutionRevealed]);
 
+  // pulse the score bar only when the threshold is crossed upward
   useEffect(() => {
-    if (!challengeComparisonActive || !activeChallenge || isSolutionRevealed) {
+    if (!isChallengeSelected || !activeChallenge || isSolutionRevealed) {
       prevChallengeScoreRef.current = challengeScore;
       if (isMatchCelebrating) {
         const clearPulseTimer = setTimeout(() => {
@@ -318,7 +297,10 @@ export default function App() {
       }
       return;
     }
-    if (prevChallengeScoreRef.current < 95 && challengeScore >= 95) {
+    if (
+      prevChallengeScoreRef.current < MATCH_SCORE_THRESHOLD
+      && challengeScore >= MATCH_SCORE_THRESHOLD
+    ) {
       const startPulseTimer = setTimeout(() => {
         setIsMatchCelebrating(true);
       }, 0);
@@ -330,7 +312,7 @@ export default function App() {
       return () => clearTimeout(startPulseTimer);
     }
     prevChallengeScoreRef.current = challengeScore;
-  }, [challengeComparisonActive, activeChallenge, challengeScore, isSolutionRevealed, isMatchCelebrating]);
+  }, [isChallengeSelected, activeChallenge, challengeScore, isSolutionRevealed, isMatchCelebrating]);
 
   useEffect(
     () => () => {
@@ -340,6 +322,7 @@ export default function App() {
     [cancelRevealAnimation]
   );
 
+  // switch active challenge while preserving the current network
   const handleSelectChallenge = (challengeId) => {
     if (isRevealingSolution || challengeId === selectedChallengeId) return;
     if (isSolutionRevealed && activeChallenge && savedAttempt && savedAttempt.challengeId === activeChallenge.id) {
@@ -348,16 +331,15 @@ export default function App() {
       );
       if (!confirmed) return;
     }
-    cancelRevealAnimation();
+    resetChallengeRuntimeState({
+      clearSavedAttempt: true,
+      clearRevealSolvedLock: false,
+    });
     setSelectedChallengeId(challengeId);
-    setIsRevealingSolution(false);
-    setSavedAttempt(null);
-    setIsSolutionRevealed(false);
-    setIsMatchCelebrating(false);
-    prevChallengeScoreRef.current = 0;
     setSel(null);
   };
 
+  // animate from the current network into the canonical solution
   const handleShowSolution = () => {
     if (!activeChallenge || isRevealingSolution || isSolutionRevealed) return;
     const confirmed = window.confirm("Reveal a solution? Your current weights will be saved so you can restore them while this challenge is active.");
@@ -399,35 +381,27 @@ export default function App() {
     revealFrameRef.current = requestAnimationFrame(animate);
   };
 
+  // bring back the pre-reveal attempt snapshot for this challenge
   const handleRestoreAttempt = () => {
     if (!activeChallenge || !savedAttempt || savedAttempt.challengeId !== activeChallenge.id) return;
-    cancelRevealAnimation();
+    resetChallengeRuntimeState();
     setLayers(cloneLayers(savedAttempt.layers));
     setInputValues([...savedAttempt.inputValues]);
     setSel(savedAttempt.sel ? { ...savedAttempt.sel } : null);
-    setIsRevealingSolution(false);
-    setIsSolutionRevealed(false);
-    setRevealSolvedLockId(null);
-    setIsMatchCelebrating(false);
-    prevChallengeScoreRef.current = 0;
   };
 
+  // exit challenge mode and return to open sandbox state
   const handleTryAnother = () => {
-    cancelRevealAnimation();
     if (activeChallenge && savedAttempt && savedAttempt.challengeId === activeChallenge.id) {
       setLayers(cloneLayers(savedAttempt.layers));
       setInputValues([...savedAttempt.inputValues]);
     }
-    setIsRevealingSolution(false);
-    setIsSolutionRevealed(false);
-    setRevealSolvedLockId(null);
-    setIsMatchCelebrating(false);
-    prevChallengeScoreRef.current = 0;
-    setSavedAttempt(null);
+    resetChallengeRuntimeState({ clearSavedAttempt: true });
     setSelectedChallengeId(null);
     setSel(null);
   };
 
+  // guard architecture edits with the same import limits
   const addHiddenLayer = () => {
     if (layers.length >= NETWORK_IMPORT_LIMITS.maxLayers) {
       window.alert(`Layer limit reached (${NETWORK_IMPORT_LIMITS.maxLayers}).`);
@@ -495,26 +469,11 @@ export default function App() {
   const removeNeuron = (layerIdx, neuronIdx) => {
     if (layerIdx === 0 || layerIdx === layers.length - 1) return;
     if (layers[layerIdx].neurons.length <= 1) return;
-    setLayers((prev) =>
-      prev.map((layer, i) => {
-        if (i === layerIdx) {
-          return { ...layer, neurons: layer.neurons.filter((_, j) => j !== neuronIdx) };
-        }
-        if (i === layerIdx + 1) {
-          return {
-            ...layer,
-            neurons: layer.neurons.map((n) => ({
-              ...n,
-              weights: n.weights.filter((_, j) => j !== neuronIdx),
-            })),
-          };
-        }
-        return layer;
-      })
-    );
+    setLayers((prev) => buildLayersWithRemovedNeuron(prev, layerIdx, neuronIdx));
     if (sel && sel.layerIdx === layerIdx) setSel(null);
   };
 
+  // parse drafts eagerly so the graph updates as fields become valid
   const updateParameterDraft = useCallback(
     (key, text) => {
       if (isRevealingSolution) return;
@@ -541,14 +500,9 @@ export default function App() {
     setLayers((prev) => prev.map((layer, i) => (i === layerIdx ? { ...layer, activation: act } : layer)));
   };
 
+  // randomize learned parameters while keeping architecture fixed
   const randomizeAll = () => {
-    cancelRevealAnimation();
-    setIsRevealingSolution(false);
-    setIsSolutionRevealed(false);
-    setRevealSolvedLockId(null);
-    setSavedAttempt(null);
-    setIsMatchCelebrating(false);
-    prevChallengeScoreRef.current = 0;
+    resetChallengeRuntimeState({ clearSavedAttempt: true });
     setLayers((prev) =>
       prev.map((layer, i) => {
         if (i === 0) return layer;
@@ -563,35 +517,25 @@ export default function App() {
     );
   };
 
+  // reset everything back to the default single-layer network
   const resetAll = () => {
-    cancelRevealAnimation();
+    resetChallengeRuntimeState({ clearSavedAttempt: true });
     setLayers(createInitialNetwork());
     setInputValues(DEFAULT_INPUT_VALUES);
-    setIsRevealingSolution(false);
-    setIsSolutionRevealed(false);
-    setRevealSolvedLockId(null);
-    setSavedAttempt(null);
-    setIsMatchCelebrating(false);
-    prevChallengeScoreRef.current = 0;
     setSel(null);
   };
 
   const applyImportedNetwork = useCallback(
     (imported) => {
-      cancelRevealAnimation();
+      resetChallengeRuntimeState({ clearSavedAttempt: true });
       setLayers(imported.layers);
       setInputValues(imported.inputValues);
-      setIsRevealingSolution(false);
-      setIsSolutionRevealed(false);
-      setRevealSolvedLockId(null);
-      setSavedAttempt(null);
-      setIsMatchCelebrating(false);
-      prevChallengeScoreRef.current = 0;
       setSel(null);
     },
-    [cancelRevealAnimation]
+    [resetChallengeRuntimeState]
   );
 
+  // validate imported json before asking to apply it
   const parseImportedNetworkFromRawText = useCallback((rawText) => {
     if (typeof rawText !== "string" || rawText.trim().length === 0) {
       return { valid: false, error: "JSON text is empty." };
@@ -613,6 +557,7 @@ export default function App() {
     }
   }, []);
 
+  // roundtrip validate exported payloads to keep exports safe
   const getValidatedExportNetworkJson = useCallback(() => {
     const payload = createNetworkExportPayload(layersRef.current, inputValuesRef.current);
     const validation = parseNetworkImportPayload(payload);
@@ -651,7 +596,7 @@ export default function App() {
     }
 
     try {
-      await copyTextToClipboard(exportResult.json);
+      await copyTextToClipboard(exportResult.json, { fallbackOnClipboardWriteFailure: false });
       window.alert("Network JSON copied to clipboard.");
     } catch {
       window.alert("Export failed: unable to copy JSON to clipboard.");
@@ -666,9 +611,7 @@ export default function App() {
   const handleOpenImportTextModal = () => {
     setIsImportMenuOpen(false);
     setIsImportTextModalOpen(true);
-    setImportTextValue("");
-    setImportTextError("");
-    setValidatedImport(null);
+    resetImportTextState();
   };
 
   const handleValidateImportText = () => {
@@ -692,9 +635,7 @@ export default function App() {
     }
     applyImportedNetwork(result.imported);
     setIsImportTextModalOpen(false);
-    setImportTextValue("");
-    setImportTextError("");
-    setValidatedImport(null);
+    resetImportTextState();
   };
 
   const handleImportNetworkFile = async (event) => {
@@ -725,22 +666,6 @@ export default function App() {
       }
       window.alert("Import failed: unable to read file.");
     }
-  };
-
-  const menuStyle = {
-    position: "absolute",
-    top: "calc(100% + 6px)",
-    right: 0,
-    zIndex: 20,
-    minWidth: 120,
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    padding: 6,
-    background: COLORS.panel,
-    border: `1px solid ${COLORS.panelBorder}`,
-    borderRadius: 8,
-    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
   };
 
   return (
@@ -780,8 +705,7 @@ export default function App() {
               borderRadius: 4,
             }}
           >
-            {layers.length - 2} hidden {layers.length - 2 === 1 ? "layer" : "layers"} ·{" "}
-            {layers.reduce((sum, layer, i) => sum + (i === 0 ? layer.neuronCount : layer.neurons.length), 0)} neurons
+            {hiddenLayerCount} hidden {hiddenLayerCount === 1 ? "layer" : "layers"} · {totalNeuronCount} neurons
           </span>
           {activeChallenge && (
             <span
@@ -1021,7 +945,7 @@ export default function App() {
             </button>
           </div>
 
-          <NetworkGraph
+          <NetworkView
             layers={layers}
             layerSizes={layerSizes}
             activations={activations}
@@ -1035,13 +959,14 @@ export default function App() {
             updateParameterDraft={updateParameterDraft}
           />
 
-          <HeatmapPanel
-            challengeComparisonActive={challengeComparisonActive}
+          <ResultsPanel
+            isChallengeSelected={isChallengeSelected}
             activeChallenge={activeChallenge}
             isRevealingSolution={isRevealingSolution}
             isSolutionRevealed={isSolutionRevealed}
             challengeScore={challengeScore}
             challengeScoreDisplay={challengeScoreDisplay}
+            matchThreshold={MATCH_SCORE_THRESHOLD}
             scoreLabel={scoreLabel}
             scoreColor={scoreColor}
             scoreGlow={scoreGlow}
@@ -1118,9 +1043,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setIsImportTextModalOpen(false);
-                  setImportTextValue("");
-                  setImportTextError("");
-                  setValidatedImport(null);
+                  resetImportTextState();
                 }}
                 style={btnStyle}
               >

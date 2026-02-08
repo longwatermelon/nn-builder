@@ -1,37 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { MATCH_SCORE_THRESHOLD } from "../features/challenges/score";
+import { copyTextToClipboard } from "../lib/clipboard";
 import { DOMAIN, GRID, drawHeatmap } from "../lib/heatmap";
 import MathText from "./MathText";
 import { COLORS, subtleBtnStyle } from "../styles/theme";
 
-async function copyTextToClipboard(text) {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch {
-      // fallback to execCommand when clipboard api write fails
-    }
-  }
-  if (typeof document === "undefined") throw new Error("Clipboard is unavailable.");
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.setAttribute("readonly", "");
-  textArea.style.position = "fixed";
-  textArea.style.opacity = "0";
-  document.body.appendChild(textArea);
-  textArea.select();
-  const copied = document.execCommand("copy");
-  document.body.removeChild(textArea);
-  if (!copied) throw new Error("Clipboard copy failed.");
-}
+const HEATMAP_DRAW_OPTIONS = { showAxes: true, showColorBar: true };
 
-export default function HeatmapPanel({
-  challengeComparisonActive,
+export default function ResultsPanel({
+  isChallengeSelected,
   activeChallenge,
   isRevealingSolution,
   isSolutionRevealed,
   challengeScore,
   challengeScoreDisplay,
+  matchThreshold = MATCH_SCORE_THRESHOLD,
   scoreLabel,
   scoreColor,
   scoreGlow,
@@ -47,6 +30,7 @@ export default function HeatmapPanel({
   const formulaCopyTimeoutRef = useRef(null);
   const [copiedFormulaChallengeId, setCopiedFormulaChallengeId] = useState(null);
 
+  // clear pending copied-state timer on unmount
   useEffect(
     () => () => {
       if (formulaCopyTimeoutRef.current) clearTimeout(formulaCopyTimeoutRef.current);
@@ -68,20 +52,22 @@ export default function HeatmapPanel({
     }
   };
 
+  // redraw user output whenever network samples or scale changes
   useEffect(() => {
-    drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, {
-      showAxes: true,
-      showColorBar: true,
-    });
-  }, [networkGrid, heatmapScale.min, heatmapScale.max, challengeComparisonActive]);
+    drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, HEATMAP_DRAW_OPTIONS);
+  }, [networkGrid, heatmapScale.min, heatmapScale.max, isChallengeSelected]);
 
+  // redraw target only while challenge mode is active
   useEffect(() => {
-    if (!challengeComparisonActive || !activeChallenge) return;
-    drawHeatmap(targetCanvasRef.current, activeChallenge.targetGrid.values, heatmapScale.min, heatmapScale.max, {
-      showAxes: true,
-      showColorBar: true,
-    });
-  }, [challengeComparisonActive, activeChallenge, heatmapScale.min, heatmapScale.max]);
+    if (!isChallengeSelected || !activeChallenge) return;
+    drawHeatmap(
+      targetCanvasRef.current,
+      activeChallenge.targetGrid.values,
+      heatmapScale.min,
+      heatmapScale.max,
+      HEATMAP_DRAW_OPTIONS
+    );
+  }, [isChallengeSelected, activeChallenge, heatmapScale.min, heatmapScale.max]);
 
   return (
     <div
@@ -106,7 +92,7 @@ export default function HeatmapPanel({
           marginBottom: 2,
         }}
       >
-        {challengeComparisonActive ? (
+        {isChallengeSelected ? (
           "Challenge Matchup"
         ) : (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -116,7 +102,7 @@ export default function HeatmapPanel({
         )}
       </div>
 
-      {challengeComparisonActive && activeChallenge && (
+      {isChallengeSelected && activeChallenge && (
         <>
           <div
             style={{
@@ -168,7 +154,7 @@ export default function HeatmapPanel({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontSize: 12, color: scoreColor, fontWeight: 600 }}>
                 {scoreLabel}
-                {challengeScore >= 95 ? " ✓" : ""}
+                {challengeScore >= matchThreshold ? " ✓" : ""}
               </span>
               <span style={{ fontSize: 13, color: COLORS.textBright, fontWeight: 700, fontFamily: "'DM Mono', monospace" }}>
                 {challengeScoreDisplay.toFixed(2)}%
@@ -288,7 +274,7 @@ export default function HeatmapPanel({
         </>
       )}
 
-      {!challengeComparisonActive && (
+      {!isChallengeSelected && (
         <>
           <canvas
             ref={userCanvasRef}

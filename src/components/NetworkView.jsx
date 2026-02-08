@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ACT_FNS, fmt, neuronColor } from "../lib/networkMath";
-import InspectorSidebar from "./InspectorSidebar";
+import NeuronInspector from "./NeuronInspector";
 import { COLORS } from "../styles/theme";
 
 const SVG_W = 560;
@@ -19,8 +19,10 @@ const LAYER_LABEL_FONT_SIZE = 9;
 const LAYER_LABEL_BOTTOM_BUFFER = Math.ceil(LAYER_LABEL_FONT_SIZE * 1.5);
 const LAYER_LABEL_NEURON_GAP = 10;
 const NEURON_BOTTOM_BUFFER = Math.max(PAD_Y + MAX_NEURON_R, MAX_NEURON_R + LAYER_LABEL_NEURON_GAP + LAYER_LABEL_BOTTOM_BUFFER);
+const MIN_GRAPH_HEIGHT = 200;
+const MAX_GRAPH_HEIGHT = 800;
 
-export default function NetworkGraph({
+export default function NetworkView({
   layers,
   layerSizes,
   activations,
@@ -41,6 +43,20 @@ export default function NetworkGraph({
 
   const SVG_H = netHeight;
 
+  // keep labels consistent across graph elements
+  const getNeuronLabel = (layerIdx, neuronIdx, isInput, isOutput) => {
+    if (isInput) return neuronIdx === 0 ? "x₁" : "x₂";
+    if (isOutput) return "out";
+    return `h${layerIdx}.${neuronIdx + 1}`;
+  };
+
+  const getLayerLabel = (layerIdx) => {
+    if (layerIdx === 0) return "Input";
+    if (layerIdx === layers.length - 1) return "Output";
+    return `Hidden ${layerIdx}`;
+  };
+
+  // recompute svg positions whenever architecture or panel size changes
   const neuronPositions = useMemo(() => {
     const positions = [];
     const numLayers = layers.length;
@@ -61,11 +77,12 @@ export default function NetworkGraph({
     return positions;
   }, [layers.length, layerSizes, SVG_H]);
 
+  // drag handle adjusts graph height without changing other panel layout
   useEffect(() => {
     if (!dragging) return;
     const onMove = (e) => {
       const dy = (e.clientY || e.touches?.[0]?.clientY || 0) - dragStartY.current;
-      setNetHeight(Math.max(200, Math.min(800, dragStartH.current + dy)));
+      setNetHeight(Math.max(MIN_GRAPH_HEIGHT, Math.min(MAX_GRAPH_HEIGHT, dragStartH.current + dy)));
     };
     const onUp = () => setDragging(false);
     window.addEventListener("mousemove", onMove);
@@ -185,7 +202,7 @@ export default function NetworkGraph({
                     fontWeight="500"
                     style={{ pointerEvents: "none" }}
                   >
-                    {isInput ? (ni === 0 ? "x₁" : "x₂") : isOutput ? "out" : `h${li}.${ni + 1}`}
+                    {getNeuronLabel(li, ni, isInput, isOutput)}
                   </text>
                 </g>
               );
@@ -194,8 +211,7 @@ export default function NetworkGraph({
           {layers.map((layer, li) => {
             const x = neuronPositions[li]?.[0]?.x ?? 0;
             const isInput = li === 0;
-            const isOutput = li === layers.length - 1;
-            const label = isInput ? "Input" : isOutput ? "Output" : `Hidden ${li}`;
+            const label = getLayerLabel(li);
             return (
               <text
                 key={`lbl-${li}`}
@@ -222,7 +238,7 @@ export default function NetworkGraph({
             overflowY: "auto",
           }}
         >
-          <InspectorSidebar
+          <NeuronInspector
             sel={sel}
             setSel={setSel}
             layers={layers}

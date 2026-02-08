@@ -55,23 +55,30 @@ export function neuronColor(val, alpha = 1) {
   return `rgba(${r},${g},${bl},${alpha})`;
 }
 
+function runLayerActivations(layer, previousActivations, preActivationsOut = null) {
+  const activate = ACT_FNS[layer.activation].fn;
+  const activations = [];
+
+  for (const neuron of layer.neurons) {
+    let weightedSum = neuron.bias;
+    for (let i = 0; i < previousActivations.length; i++) {
+      weightedSum += (neuron.weights[i] || 0) * previousActivations[i];
+    }
+    if (preActivationsOut) preActivationsOut.push(weightedSum);
+    activations.push(activate(weightedSum));
+  }
+
+  return activations;
+}
+
 export function forwardPassFull(layers, inputValues) {
   const acts = [inputValues.slice()];
   const pres = [inputValues.slice()];
   for (let l = 1; l < layers.length; l++) {
-    const layer = layers[l];
-    const prev = acts[l - 1];
-    const actFn = ACT_FNS[layer.activation].fn;
-    const lp = [];
-    const la = [];
-    for (const n of layer.neurons) {
-      let s = n.bias;
-      for (let i = 0; i < prev.length; i++) s += (n.weights[i] || 0) * prev[i];
-      lp.push(s);
-      la.push(actFn(s));
-    }
-    pres.push(lp);
-    acts.push(la);
+    const preActivations = [];
+    const activations = runLayerActivations(layers[l], acts[l - 1], preActivations);
+    pres.push(preActivations);
+    acts.push(activations);
   }
   return { activations: acts, preActivations: pres };
 }
@@ -79,15 +86,7 @@ export function forwardPassFull(layers, inputValues) {
 export function computeOutput(layers, x1, x2) {
   let prev = [x1, x2];
   for (let l = 1; l < layers.length; l++) {
-    const layer = layers[l];
-    const actFn = ACT_FNS[layer.activation].fn;
-    const next = [];
-    for (const n of layer.neurons) {
-      let s = n.bias;
-      for (let i = 0; i < prev.length; i++) s += (n.weights[i] || 0) * prev[i];
-      next.push(actFn(s));
-    }
-    prev = next;
+    prev = runLayerActivations(layers[l], prev);
   }
   return prev[0] ?? 0;
 }
@@ -103,6 +102,7 @@ function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+// enforce fixed two-input sandbox contract
 function sanitizeInputValues(inputValues) {
   if (!Array.isArray(inputValues) || inputValues.length !== DEFAULT_INPUT_VALUES.length) {
     return { valid: false, error: `Input values must contain exactly ${DEFAULT_INPUT_VALUES.length} numbers.` };
@@ -133,6 +133,7 @@ function sanitizeLayers(layers) {
 
   let prevSize = DEFAULT_INPUT_VALUES.length;
   let totalWeights = 0;
+  // validate each non-input layer and normalize neuron arrays
   for (let layerIdx = 1; layerIdx < layers.length; layerIdx++) {
     const layer = layers[layerIdx];
     if (!layer || typeof layer !== "object") {
@@ -236,6 +237,7 @@ export function parseNetworkImportPayload(payload) {
     }
   }
 
+  // accept both modern metadata payloads and legacy plain payloads
   const hasTopLevelLayers = Object.prototype.hasOwnProperty.call(payload, "layers");
   const candidate = hasMetadata ? payload.network : hasTopLevelLayers ? payload : hasNestedNetwork ? payload.network : payload;
   const layersResult = sanitizeLayers(candidate.layers);
@@ -309,6 +311,7 @@ function readDraftText(drafts, key, fallbackValue) {
 }
 
 export function parseDraftsToNetwork(drafts, layers, inputValues) {
+  // stop updates on the first invalid field so ui can highlight it
   const nextInputValues = [];
   for (let i = 0; i < inputValues.length; i++) {
     const parsed = parseRealNumber(readDraftText(drafts, inputFieldKey(i), inputValues[i]));
@@ -347,6 +350,7 @@ export function parseDraftsToNetwork(drafts, layers, inputValues) {
 }
 
 export function reconcileParameterDrafts(prevDrafts, layers, inputValues) {
+  // keep user text when it still represents the same number
   const canonicalDrafts = buildParameterDrafts(layers, inputValues);
   const nextDrafts = {};
   let changed = false;
@@ -401,12 +405,23 @@ export function networkParametersEqual(aLayers, bLayers) {
   return true;
 }
 
+function cloneNeuron(neuron) {
+  return { bias: neuron.bias, weights: [...neuron.weights] };
+}
+
+function zeroNeuronLike(neuron) {
+  return {
+    bias: 0,
+    weights: neuron.weights.map(() => 0),
+  };
+}
+
 export function cloneLayers(layers) {
   return layers.map((layer, idx) => {
     if (idx === 0) return { ...layer };
     return {
       ...layer,
-      neurons: layer.neurons.map((n) => ({ bias: n.bias, weights: [...n.weights] })),
+      neurons: layer.neurons.map(cloneNeuron),
     };
   });
 }
@@ -416,10 +431,7 @@ export function zeroLayersLike(templateLayers) {
     if (idx === 0) return { ...layer };
     return {
       ...layer,
-      neurons: layer.neurons.map((n) => ({
-        bias: 0,
-        weights: n.weights.map(() => 0),
-      })),
+      neurons: layer.neurons.map(zeroNeuronLike),
     };
   });
 }

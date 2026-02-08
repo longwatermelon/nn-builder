@@ -10,7 +10,7 @@ import {
 } from "../lib/networkMath";
 import { COLORS } from "../styles/theme";
 
-export default function InspectorSidebar({
+export default function NeuronInspector({
   sel,
   setSel,
   layers,
@@ -59,6 +59,19 @@ export default function InspectorSidebar({
     return parsed.valid ? parsed.value : fallback;
   };
 
+  const selectTextOnFocus = (event) => {
+    const target = event.target;
+    requestAnimationFrame(() => target.select());
+  };
+
+  // label incoming connections by source layer
+  const getIncomingSourceLabel = (weightIdx) => {
+    if (layerIdx === 1) {
+      return weightIdx === 0 ? "x₁" : weightIdx === 1 ? "x₂" : `x${weightIdx + 1}`;
+    }
+    return `h${layerIdx - 1}n${weightIdx + 1}`;
+  };
+
   const numberInput = (key, fallback, label) => {
     const isInvalid = draftValidityByKey[key] === false;
     return (
@@ -69,7 +82,7 @@ export default function InspectorSidebar({
           inputMode="decimal"
           value={getFieldText(key, fallback)}
           onChange={(e) => updateParameterDraft(key, e.target.value)}
-          onFocus={(e) => { const t = e.target; requestAnimationFrame(() => t.select()); }}
+          onFocus={selectTextOnFocus}
           disabled={isRevealingSolution}
           aria-invalid={isInvalid}
           style={{
@@ -188,7 +201,7 @@ export default function InspectorSidebar({
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INCOMING WEIGHTS</div>
           {layers[layerIdx].neurons[neuronIdx].weights.map((w, wi) => {
-            const prevLabel = layerIdx === 1 ? (wi === 0 ? "x₁" : wi === 1 ? "x₂" : `x${wi + 1}`) : `h${layerIdx - 1}n${wi + 1}`;
+            const prevLabel = getIncomingSourceLabel(wi);
             const key = weightFieldKey(layerIdx, neuronIdx, wi);
             const sliderValue = clamp(getFieldNumericValue(key, w), -5, 5);
             return (

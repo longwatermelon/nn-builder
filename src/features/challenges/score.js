@@ -1,5 +1,7 @@
 import { clamp, lerp } from "../../lib/networkMath";
 
+export const MATCH_SCORE_THRESHOLD = 95;
+
 const SCORE_COLOR_STOPS = [
   { score: 0, rgb: [122, 24, 24] },
   { score: 50, rgb: [229, 121, 34] },
@@ -13,6 +15,7 @@ export function getScoreColor(score) {
   let left = SCORE_COLOR_STOPS[0];
   let right = SCORE_COLOR_STOPS[SCORE_COLOR_STOPS.length - 1];
 
+  // find surrounding stops then interpolate within that segment
   for (let i = 0; i < SCORE_COLOR_STOPS.length - 1; i++) {
     const a = SCORE_COLOR_STOPS[i];
     const b = SCORE_COLOR_STOPS[i + 1];
@@ -30,7 +33,7 @@ export function getScoreColor(score) {
 }
 
 export function getScoreLabel(score) {
-  if (score >= 95) return "Matched!";
+  if (score >= MATCH_SCORE_THRESHOLD) return "Matched!";
   if (score >= 80) return "Almost there";
   if (score >= 50) return "Getting closer";
   return "Keep going";

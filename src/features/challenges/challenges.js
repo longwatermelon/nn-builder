@@ -31,6 +31,7 @@ function createSingleHiddenSolution({
   ];
 }
 
+// factorized relu construction that approximates x1 * x2
 function createInterpretableReluProductSolution() {
   const thresholds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   const hingeCoefficients = thresholds.map((threshold) => (threshold === 0 ? 1 : 2));
@@ -74,6 +75,7 @@ function createInterpretableReluProductSolution() {
 }
 
 export const CHALLENGE_DEFS = [
+  // tutorial and easy challenges teach core primitives first
   {
     id: "identity",
     name: "Identity",

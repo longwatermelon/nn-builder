@@ -5,6 +5,7 @@ import { COLORS } from "../styles/theme";
 export default function ChallengeThumbnail({ values, min, max }) {
   const thumbRef = useRef(null);
 
+  // thumbnails are static previews so redraw only when sampled data changes
   useEffect(() => {
     drawHeatmap(thumbRef.current, values, min, max, { showAxes: false, showColorBar: false });
   }, [values, min, max]);

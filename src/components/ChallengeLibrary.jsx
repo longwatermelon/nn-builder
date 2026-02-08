@@ -21,10 +21,10 @@ export default function ChallengeLibrary({
       </div>
 
       <div style={{ overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 2, flex: 1, minHeight: 0 }}>
+        {/* keep all challenges visible so users can switch quickly */}
         {challengeCatalog.map((challenge) => {
           const solved = Boolean(solvedChallenges[challenge.id]);
           const isSelected = challenge.id === selectedChallengeId;
-          const showFormula = true;
           const difficultyRaw = typeof challenge.difficulty === "string" ? challenge.difficulty : "unknown";
           const difficultyLabel = difficultyRaw.charAt(0).toUpperCase() + difficultyRaw.slice(1);
           const difficultyColor = DIFFICULTY_COLORS[difficultyRaw] ?? COLORS.textMuted;
@@ -64,11 +64,9 @@ export default function ChallengeLibrary({
                   {difficultyLabel}
                 </span>
               </div>
-              {showFormula && (
-                <div style={{ fontSize: 12, color: COLORS.textMuted }}>
-                  <MathText tex={challenge.formula} style={{ fontSize: 13, color: COLORS.textMuted }} />
-                </div>
-              )}
+              <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                <MathText tex={challenge.formula} style={{ fontSize: 13, color: COLORS.textMuted }} />
+              </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <ChallengeThumbnail values={challenge.targetGrid.values} min={challenge.targetGrid.min} max={challenge.targetGrid.max} />
                 <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: solved ? COLORS.success : COLORS.textMuted, fontWeight: 600 }}>

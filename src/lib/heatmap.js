@@ -3,6 +3,7 @@ import { clamp, fmt } from "./networkMath";
 
 export const GRID = 100;
 export const DOMAIN = [-5, 5];
+const DOMAIN_SPAN = DOMAIN[1] - DOMAIN[0];
 
 const VIRIDIS_STOPS = [
   [68, 1, 84],
@@ -26,14 +27,22 @@ function colorMap(t) {
   ];
 }
 
+function gridColumnToX1(columnIndex) {
+  return DOMAIN[0] + (columnIndex / (GRID - 1)) * DOMAIN_SPAN;
+}
+
+function gridRowToX2(rowIndex) {
+  return DOMAIN[1] - (rowIndex / (GRID - 1)) * DOMAIN_SPAN;
+}
+
 export function computeGrid(sampleFn) {
   const values = new Float64Array(GRID * GRID);
   let min = Infinity;
   let max = -Infinity;
   for (let j = 0; j < GRID; j++) {
+    const x2 = gridRowToX2(j);
     for (let i = 0; i < GRID; i++) {
-      const x1 = DOMAIN[0] + (i / (GRID - 1)) * (DOMAIN[1] - DOMAIN[0]);
-      const x2 = DOMAIN[1] - (j / (GRID - 1)) * (DOMAIN[1] - DOMAIN[0]);
+      const x1 = gridColumnToX1(i);
       const raw = sampleFn(x1, x2);
       const v = Number.isFinite(raw) ? raw : 0;
       values[j * GRID + i] = v;
@@ -82,6 +91,7 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
+  // keep defaults explicit so callers can override only one option
   const showAxes = options.showAxes ?? true;
   const showColorBar = options.showColorBar ?? true;
 
@@ -120,8 +130,8 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
   if (showAxes) {
     ctx.strokeStyle = "rgba(220,230,245,0.4)";
     ctx.lineWidth = 1;
-    const cx = (plotW * (0 - DOMAIN[0])) / (DOMAIN[1] - DOMAIN[0]);
-    const cy = h * (1 - (0 - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0]));
+    const cx = (plotW * (0 - DOMAIN[0])) / DOMAIN_SPAN;
+    const cy = h * (1 - (0 - DOMAIN[0]) / DOMAIN_SPAN);
     ctx.beginPath();
     ctx.moveTo(cx, 0);
     ctx.lineTo(cx, h);
@@ -138,8 +148,8 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
     ctx.fillText("x₂", cx + 14, 14);
     for (let v = -4; v <= 4; v += 2) {
       if (v === 0) continue;
-      const px = (plotW * (v - DOMAIN[0])) / (DOMAIN[1] - DOMAIN[0]);
-      const py2 = h * (1 - (v - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0]));
+      const px = (plotW * (v - DOMAIN[0])) / DOMAIN_SPAN;
+      const py2 = h * (1 - (v - DOMAIN[0]) / DOMAIN_SPAN);
       ctx.fillText(String(v), px, cy + 14);
       ctx.fillText(String(v), cx - 14, py2 + 4);
     }

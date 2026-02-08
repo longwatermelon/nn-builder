@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 let katexPromise;
 let katexModule;
 
+// memoize dynamic import so many labels reuse one katex instance
 function loadKatex() {
   if (katexModule) return Promise.resolve(katexModule);
   if (!katexPromise) {
@@ -30,12 +31,14 @@ export default function MathText({ tex, style, className, displayMode = false })
 
   useEffect(() => {
     let mounted = true;
-    loadKatex().then((loadedKatex) => {
-      if (!mounted) return;
-      setKatex(() => loadedKatex);
-    }).catch(() => {
-      // keep plain-text fallback when katex fails to load
-    });
+    loadKatex()
+      .then((loadedKatex) => {
+        if (!mounted) return;
+        setKatex(() => loadedKatex);
+      })
+      .catch(() => {
+        // keep plain-text fallback when katex fails to load
+      });
     return () => {
       mounted = false;
     };

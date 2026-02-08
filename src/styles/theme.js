@@ -1,3 +1,4 @@
+// shared palette tokens used across all panels
 export const COLORS = {
   bg: "#0b1018",
   panel: "#131b2c",
@@ -24,6 +25,7 @@ export const DIFFICULTY_COLORS = {
   insane: "#8b5cf6",
 };
 
+// base action button style
 export const btnStyle = {
   background: "none",
   border: `1px solid ${COLORS.panelBorder}`,
@@ -50,6 +52,7 @@ export const subtleBtnStyle = {
   transition: "all 0.15s",
 };
 
+// compact icon-style controls used in layer chips
 export const smallBtnStyle = {
   background: COLORS.bg,
   border: `1px solid ${COLORS.panelBorder}`,

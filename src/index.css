@@ -7,12 +7,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* global reset */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+/* shared scrollbar styling */
 * {
   scrollbar-width: thin;
   scrollbar-color: #3a5580 transparent;
