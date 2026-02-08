@@ -116,7 +116,7 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
     ctx.stroke();
 
     ctx.fillStyle = COLORS.text;
-    ctx.font = "11px 'DM Mono', monospace";
+    ctx.font = "11px 'KaTeX_Main', 'Times New Roman', serif";
     ctx.textAlign = "center";
     ctx.fillText("x₁", plotW - 16, cy - 6);
     ctx.fillText("x₂", cx + 14, 14);
@@ -141,7 +141,7 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
       ctx.fillRect(barX, barY + y, barW, 1);
     }
     ctx.fillStyle = COLORS.text;
-    ctx.font = "9px 'DM Mono', monospace";
+    ctx.font = "9px 'KaTeX_Main', 'Times New Roman', serif";
     ctx.textAlign = "right";
     ctx.fillText(fmt(maxVal), barX - 3, barY + 8);
     ctx.fillText(fmt(minVal), barX - 3, barY + barH);

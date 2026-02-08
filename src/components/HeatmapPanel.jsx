@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { DOMAIN, GRID, drawHeatmap } from "../lib/heatmap";
+import MathText from "./MathText";
 import { COLORS, subtleBtnStyle } from "../styles/theme";
 
 export default function HeatmapPanel({
@@ -60,7 +61,14 @@ export default function HeatmapPanel({
           marginBottom: 2,
         }}
       >
-        {challengeComparisonActive ? "Challenge Matchup" : "Output Heatmap · f(x₁, x₂)"}
+        {challengeComparisonActive ? (
+          "Challenge Matchup"
+        ) : (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span>Output Heatmap ·</span>
+            <MathText tex="f(x_1, x_2)" style={{ fontSize: 12, color: COLORS.textMuted, textTransform: "none", letterSpacing: 0 }} />
+          </span>
+        )}
       </div>
 
       {challengeComparisonActive && activeChallenge && (
@@ -70,16 +78,32 @@ export default function HeatmapPanel({
               width: "100%",
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: "flex-start",
               gap: 10,
               flexWrap: "wrap",
             }}
           >
-            <div>
+            <div style={{ minWidth: 0, flex: "1 1 320px" }}>
               <div style={{ fontSize: 16, color: COLORS.textBright, fontWeight: 700 }}>{activeChallenge.name}</div>
-              <div style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 2 }}>
-                {activeChallenge.formula} · {activeChallenge.difficulty} · par {activeChallenge.par}
-              </div>
+              {activeChallenge.hideFormulaInLibrary ? (
+                <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>
+                  {activeChallenge.difficulty} · par {activeChallenge.par}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: COLORS.textMuted,
+                    marginTop: 2,
+                    minWidth: 0,
+                  }}
+                >
+                  <MathText tex={activeChallenge.formula} style={{ fontSize: 13, color: COLORS.textMuted, display: "block" }} />
+                  <div style={{ marginTop: 2 }}>
+                    {activeChallenge.difficulty} · par {activeChallenge.par}
+                  </div>
+                </div>
+              )}
               {activeChallenge.hint && <div style={{ fontSize: 12, color: COLORS.accent, marginTop: 3 }}>Hint: {activeChallenge.hint}</div>}
             </div>
             <div style={{ display: "flex", gap: 8 }}>

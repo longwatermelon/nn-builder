@@ -15,6 +15,7 @@ This project is a website for students to practice their intuition on hand-craft
   - `src/lib/heatmap.js` - Heatmap grid sampling, scoring math support utilities, and canvas rendering helpers.
   - `src/features/challenges/challenges.js` - Challenge catalog and canonical solution factories.
   - `src/features/challenges/score.js` - Challenge match-score labels and gradient color mapping.
+  - `src/components/MathText.jsx` - Shared KaTeX renderer for math expressions in the UI.
   - `src/components/ChallengeThumbnail.jsx` - Small canvas preview for challenge cards.
   - `src/components/ChallengeLibrary.jsx` - Sidebar challenge UI that keeps the full challenge list visible and highlights the selected challenge.
   - `src/components/InspectorSidebar.jsx` - Floating neuron inspector menu for editing selected neuron inputs, biases, and weights.

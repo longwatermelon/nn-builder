@@ -1,4 +1,5 @@
 import ChallengeThumbnail from "./ChallengeThumbnail";
+import MathText from "./MathText";
 import { COLORS, DIFFICULTY_COLORS } from "../styles/theme";
 
 export default function ChallengeLibrary({
@@ -11,7 +12,7 @@ export default function ChallengeLibrary({
   const selectedChallengeId = activeChallenge?.id ?? null;
 
   return (
-    <div style={{ padding: 14, fontFamily: "'Sora', sans-serif", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ padding: 14, fontFamily: "'Sora', sans-serif", display: "flex", flexDirection: "column", gap: 12, height: "100%", width: "100%" }}>
       <div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textBright }}>Challenge Library</div>
@@ -19,10 +20,11 @@ export default function ChallengeLibrary({
         </div>
       </div>
 
-      <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 170px)", display: "flex", flexDirection: "column", gap: 10, paddingRight: 2 }}>
+      <div style={{ overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", gap: 10, paddingRight: 2, flex: 1, minHeight: 0 }}>
         {challengeCatalog.map((challenge) => {
           const solved = Boolean(solvedChallenges[challenge.id]);
           const isSelected = challenge.id === selectedChallengeId;
+          const showFormula = !challenge.hideFormulaInLibrary;
           return (
             <button
               key={challenge.id}
@@ -59,7 +61,11 @@ export default function ChallengeLibrary({
                   {challenge.difficulty}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace" }}>{challenge.formula}</div>
+              {showFormula && (
+                <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                  <MathText tex={challenge.formula} style={{ fontSize: 13, color: COLORS.textMuted }} />
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10 }}>
                 <ChallengeThumbnail values={challenge.targetGrid.values} min={challenge.targetGrid.min} max={challenge.targetGrid.max} />
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>

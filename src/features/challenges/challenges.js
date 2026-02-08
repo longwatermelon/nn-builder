@@ -84,7 +84,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "identity",
     name: "Identity",
-    formula: "x₁",
+    formula: "x_1",
     difficulty: "Beginner",
     par: "0 hidden · linear",
     targetFn: (x1) => x1,
@@ -93,7 +93,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "linear_combo",
     name: "Linear Combo",
-    formula: "2x₁ - x₂ + 1",
+    formula: "2x_1 - x_2 + 1",
     difficulty: "Beginner",
     par: "0 hidden · linear",
     targetFn: (x1, x2) => 2 * x1 - x2 + 1,
@@ -102,7 +102,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "relu_ramp",
     name: "ReLU Ramp",
-    formula: "max(0, x₁)",
+    formula: "\\max(0, x_1)",
     difficulty: "Intermediate",
     par: "0 hidden · relu output",
     targetFn: (x1) => Math.max(0, x1),
@@ -111,7 +111,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "absolute_value",
     name: "Absolute Value",
-    formula: "|x₁|",
+    formula: "\\left|x_1\\right|",
     difficulty: "Intermediate",
     par: "1 hidden · 2 relu",
     targetFn: (x1) => Math.abs(x1),
@@ -130,7 +130,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "max_two_inputs",
     name: "Max Of Two",
-    formula: "max(x₁, x₂)",
+    formula: "\\max(x_1, x_2)",
     difficulty: "Intermediate",
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(x1, x2),
@@ -150,7 +150,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "quadratic",
     name: "Quadratic",
-    formula: "x₁²",
+    formula: "x_1^2",
     difficulty: "Advanced",
     par: "1 hidden · ~18 relu",
     targetFn: (x1) => x1 * x1,
@@ -168,7 +168,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "product",
     name: "Product",
-    formula: "x₁ · x₂",
+    formula: "x_1 \\cdot x_2",
     difficulty: "Advanced",
     par: "1 hidden · ~36 relu",
     targetFn: (x1, x2) => x1 * x2,
@@ -195,7 +195,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "sine",
     name: "Sine Wave",
-    formula: "sin(x₁)",
+    formula: "\\sin(x_1)",
     difficulty: "Advanced",
     par: "1 hidden · ~26 relu",
     targetFn: (x1) => Math.sin(x1),
@@ -213,7 +213,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "diagonal_sine",
     name: "Diagonal Sine",
-    formula: "sin(x₁ + x₂)",
+    formula: "\\sin(x_1 + x_2)",
     difficulty: "Expert",
     par: "1 hidden · ~34 relu",
     targetFn: (x1, x2) => Math.sin(x1 + x2),
@@ -231,7 +231,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "radial_bowl",
     name: "Radial Bowl",
-    formula: "x₁² + x₂²",
+    formula: "x_1^2 + x_2^2",
     difficulty: "Expert",
     par: "1 hidden · ~32 relu",
     targetFn: (x1, x2) => x1 * x1 + x2 * x2,
@@ -256,7 +256,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "step_edge",
     name: "Step Edge",
-    formula: "x₁ >= 0 ? 1 : -1",
+    formula: "\\begin{cases}1,&x_1 \\ge 0\\\\-1,&x_1 < 0\\end{cases}",
     difficulty: "Expert",
     par: "0 hidden · tanh output",
     targetFn: (x1) => (x1 >= 0 ? 1 : -1),
@@ -265,8 +265,9 @@ export const CHALLENGE_DEFS = [
   {
     id: "offset_roofline",
     name: "Offset Roofline",
-    formula: "0.25x₂ + max(0, x₁ + 2) - 1.6max(0, x₁ - 0.5) + 0.6max(0, x₁ - 3)",
+    formula: "0.25x_2 + \\max(0, x_1 + 2) - 1.6\\max(0, x_1 - 0.5) + 0.6\\max(0, x_1 - 3)",
     difficulty: "Boss",
+    hideFormulaInLibrary: true,
     par: "1 hidden · 4 relu",
     targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 2) - 1.6 * Math.max(0, x1 - 0.5) + 0.6 * Math.max(0, x1 - 3),
     solutionFactory: () =>
@@ -286,8 +287,9 @@ export const CHALLENGE_DEFS = [
   {
     id: "tilted_notch",
     name: "Tilted Notch",
-    formula: "max(0, x₁ + 0.5x₂ + 1) - max(0, x₁ + 0.5x₂ - 1) - 0.5max(0, x₁ - x₂ - 1.5)",
+    formula: "\\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.5\\max(0, x_1 - x_2 - 1.5)",
     difficulty: "Boss",
+    hideFormulaInLibrary: true,
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) =>
       Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.5 * Math.max(0, x1 - x2 - 1.5),
@@ -307,8 +309,9 @@ export const CHALLENGE_DEFS = [
   {
     id: "kinked_valley",
     name: "Kinked Valley",
-    formula: "|x₁ - 1| + 0.7|x₂ + 1.5| - 0.8max(0, x₁ + x₂ - 1)",
+    formula: "\\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
     difficulty: "Boss",
+    hideFormulaInLibrary: true,
     par: "1 hidden · ~5 relu",
     targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
     solutionFactory: () =>
@@ -329,8 +332,9 @@ export const CHALLENGE_DEFS = [
   {
     id: "offcenter_diamond_cap",
     name: "Offcenter Diamond Cap",
-    formula: "max(0, 2.2 - |x₁ - 1.2| - 0.6|x₂ + 0.8|)",
+    formula: "\\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
     difficulty: "Boss",
+    hideFormulaInLibrary: true,
     par: "1 hidden · ~4 relu + relu output",
     targetFn: (x1, x2) => Math.max(0, 2.2 - Math.abs(x1 - 1.2) - 0.6 * Math.abs(x2 + 0.8)),
     solutionFactory: () =>
@@ -350,8 +354,9 @@ export const CHALLENGE_DEFS = [
   {
     id: "diagonal_toll_booth",
     name: "Diagonal Toll Booth",
-    formula: "max(0, x₁ - x₂ + 1.2) - max(0, x₁ - x₂ - 1.2) + 0.4max(0, x₂ + 0.5)",
+    formula: "\\max(0, x_1 - x_2 + 1.2) - \\max(0, x_1 - x_2 - 1.2) + 0.4\\max(0, x_2 + 0.5)",
     difficulty: "Boss",
+    hideFormulaInLibrary: true,
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(0, x1 - x2 + 1.2) - Math.max(0, x1 - x2 - 1.2) + 0.4 * Math.max(0, x2 + 0.5),
     solutionFactory: () =>
@@ -371,8 +376,9 @@ export const CHALLENGE_DEFS = [
     id: "three_axis_fold",
     name: "Three Axis Fold",
     formula:
-      "0.2x₁ + max(0, x₁ + x₂ - 1) - 0.9max(0, x₁ - 1.5x₂ - 0.5) + 0.7max(0, -x₁ + 0.4x₂ + 1.5)",
+      "0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
     difficulty: "Boss",
+    hideFormulaInLibrary: true,
     par: "1 hidden · 4 relu",
     hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
     targetFn: (x1, x2) =>

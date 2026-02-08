@@ -473,8 +473,8 @@ export default function App() {
   return (
     <div
       style={{
-        width: "100vw",
-        height: "100vh",
+        width: "100%",
+        height: "100%",
         background: COLORS.bg,
         color: COLORS.text,
         fontFamily: "'Sora', sans-serif",
@@ -556,7 +556,8 @@ export default function App() {
             flexShrink: 0,
             background: COLORS.panel,
             borderRight: `1px solid ${COLORS.panelBorder}`,
-            overflowY: "auto",
+            display: "flex",
+            overflow: "hidden",
           }}
         >
           <ChallengeLibrary
