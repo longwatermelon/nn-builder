@@ -200,7 +200,6 @@ export const CHALLENGE_DEFS = [
     name: "Kinked Valley",
     formula: "f(x_1, x_2) = \\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
     difficulty: "insane",
-    hideFormulaInLibrary: true,
     targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -222,7 +221,6 @@ export const CHALLENGE_DEFS = [
     name: "Offcenter Diamond Cap",
     formula: "f(x_1, x_2) = \\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
     difficulty: "insane",
-    hideFormulaInLibrary: true,
     targetFn: (x1, x2) => Math.max(0, 2.2 - Math.abs(x1 - 1.2) - 0.6 * Math.abs(x2 + 0.8)),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -244,7 +242,6 @@ export const CHALLENGE_DEFS = [
     formula:
       "f(x_1, x_2) = 0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
     difficulty: "insane",
-    hideFormulaInLibrary: true,
     hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
     targetFn: (x1, x2) =>
       0.2 * x1 + Math.max(0, x1 + x2 - 1) - 0.9 * Math.max(0, x1 - 1.5 * x2 - 0.5) + 0.7 * Math.max(0, -x1 + 0.4 * x2 + 1.5),
@@ -259,68 +256,6 @@ export const CHALLENGE_DEFS = [
         ],
         outputWeights: [0.2, 1, -0.9, 0.7],
         outputBias: -1.2,
-        outputActivation: "linear",
-      }),
-  },
-  {
-    id: "offset_roofline",
-    name: "Offset Roofline",
-    formula: "f(x_1, x_2) = 0.25x_2 + \\max(0, x_1 + 2) - 1.6\\max(0, x_1 - 0.5) + 0.6\\max(0, x_1 - 3)",
-    difficulty: "exploratory",
-    hideFormulaInLibrary: true,
-    targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 2) - 1.6 * Math.max(0, x1 - 0.5) + 0.6 * Math.max(0, x1 - 3),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 6, weights: [0, 1] },
-          { bias: 2, weights: [1, 0] },
-          { bias: -0.5, weights: [1, 0] },
-          { bias: -3, weights: [1, 0] },
-        ],
-        outputWeights: [0.25, 1, -1.6, 0.6],
-        outputBias: -1.5,
-        outputActivation: "linear",
-      }),
-  },
-  {
-    id: "tilted_notch",
-    name: "Tilted Notch",
-    formula: "f(x_1, x_2) = \\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.5\\max(0, x_1 - x_2 - 1.5)",
-    difficulty: "exploratory",
-    hideFormulaInLibrary: true,
-    targetFn: (x1, x2) =>
-      Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.5 * Math.max(0, x1 - x2 - 1.5),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 1, weights: [1, 0.5] },
-          { bias: -1, weights: [1, 0.5] },
-          { bias: -1.5, weights: [1, -1] },
-        ],
-        outputWeights: [1, -1, -0.5],
-        outputBias: 0,
-        outputActivation: "linear",
-      }),
-  },
-  {
-    id: "diagonal_toll_booth",
-    name: "Diagonal Toll Booth",
-    formula: "f(x_1, x_2) = \\max(0, x_1 - x_2 + 1.2) - \\max(0, x_1 - x_2 - 1.2) + 0.4\\max(0, x_2 + 0.5)",
-    difficulty: "exploratory",
-    hideFormulaInLibrary: true,
-    targetFn: (x1, x2) => Math.max(0, x1 - x2 + 1.2) - Math.max(0, x1 - x2 - 1.2) + 0.4 * Math.max(0, x2 + 0.5),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 1.2, weights: [1, -1] },
-          { bias: -1.2, weights: [1, -1] },
-          { bias: 0.5, weights: [0, 1] },
-        ],
-        outputWeights: [1, -1, 0.4],
-        outputBias: 0,
         outputActivation: "linear",
       }),
   },
