@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   font-family: "Sora", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -14,7 +15,7 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #304b72 #0d1422;
+  scrollbar-color: #304b72 transparent;
 }
 
 *::-webkit-scrollbar {
@@ -23,12 +24,12 @@
 }
 
 *::-webkit-scrollbar-track {
-  background: #0d1422;
+  background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
   background: #304b72;
-  border: 2px solid #0d1422;
+  border: 2px solid transparent;
   border-radius: 999px;
 }
 
@@ -37,7 +38,7 @@
 }
 
 *::-webkit-scrollbar-corner {
-  background: #0d1422;
+  background: transparent;
 }
 
 html,
