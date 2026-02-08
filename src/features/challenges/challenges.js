@@ -35,7 +35,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "identity",
     name: "Identity",
-    formula: "x_1",
+    formula: "f(x_1, x_2) = x_1",
     difficulty: "tutorial",
     par: "0 hidden · linear",
     targetFn: (x1) => x1,
@@ -44,7 +44,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "input_sum",
     name: "Input Sum",
-    formula: "x_1 + x_2",
+    formula: "f(x_1, x_2) = x_1 + x_2",
     difficulty: "tutorial",
     par: "0 hidden · linear",
     targetFn: (x1, x2) => x1 + x2,
@@ -53,7 +53,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "relu_ramp",
     name: "ReLU Ramp",
-    formula: "\\max(0, x_1)",
+    formula: "f(x_1, x_2) = \\max(0, x_1)",
     difficulty: "tutorial",
     par: "0 hidden · relu output",
     targetFn: (x1) => Math.max(0, x1),
@@ -62,7 +62,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "tanh_curve",
     name: "Tanh Curve",
-    formula: "\\tanh(x_1)",
+    formula: "f(x_1, x_2) = \\tanh(x_1)",
     difficulty: "tutorial",
     par: "0 hidden · tanh output",
     targetFn: (x1) => Math.tanh(x1),
@@ -71,7 +71,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "linear_combo",
     name: "Linear Combo",
-    formula: "2x_1 - x_2 + 1",
+    formula: "f(x_1, x_2) = 2x_1 - x_2 + 1",
     difficulty: "easy",
     par: "0 hidden · linear",
     targetFn: (x1, x2) => 2 * x1 - x2 + 1,
@@ -80,7 +80,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "step_edge",
     name: "Step Edge",
-    formula: "\\begin{cases}1,&x_1 \\ge 0\\\\-1,&x_1 < 0\\end{cases}",
+    formula: "f(x_1, x_2) = \\begin{cases}1,&x_1 \\ge 0\\\\-1,&x_1 < 0\\end{cases}",
     difficulty: "easy",
     par: "0 hidden · tanh output",
     targetFn: (x1) => (x1 >= 0 ? 1 : -1),
@@ -89,7 +89,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "absolute_value",
     name: "Absolute Value",
-    formula: "\\left|x_1\\right|",
+    formula: "f(x_1, x_2) = \\left|x_1\\right|",
     difficulty: "medium",
     par: "1 hidden · 2 relu",
     targetFn: (x1) => Math.abs(x1),
@@ -108,7 +108,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "max_two_inputs",
     name: "Max Of Two",
-    formula: "\\max(x_1, x_2)",
+    formula: "f(x_1, x_2) = \\max(x_1, x_2)",
     difficulty: "medium",
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(x1, x2),
@@ -128,7 +128,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "absolute_difference",
     name: "Absolute Difference",
-    formula: "\\left|x_1 - x_2\\right|",
+    formula: "f(x_1, x_2) = \\left|x_1 - x_2\\right|",
     difficulty: "medium",
     par: "1 hidden · 2 relu",
     targetFn: (x1, x2) => Math.abs(x1 - x2),
@@ -147,7 +147,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "roofline_lite",
     name: "Roofline Lite",
-    formula: "0.25x_2 + \\max(0, x_1 + 1) - 1.2\\max(0, x_1 - 0.5)",
+    formula: "f(x_1, x_2) = 0.25x_2 + \\max(0, x_1 + 1) - 1.2\\max(0, x_1 - 0.5)",
     difficulty: "hard",
     par: "1 hidden · 4 relu",
     targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 1) - 1.2 * Math.max(0, x1 - 0.5),
@@ -168,7 +168,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "tilted_notch_lite",
     name: "Tilted Notch Lite",
-    formula: "\\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.35\\max(0, x_1 - x_2 - 1.2)",
+    formula: "f(x_1, x_2) = \\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.35\\max(0, x_1 - x_2 - 1.2)",
     difficulty: "hard",
     par: "1 hidden · 3 relu",
     targetFn: (x1, x2) =>
@@ -189,7 +189,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "diamond_cap_lite",
     name: "Diamond Cap Lite",
-    formula: "\\max(0, 2 - \\left|x_1 - 1\\right| - 0.6\\left|x_2 + 0.8\\right|)",
+    formula: "f(x_1, x_2) = \\max(0, 2 - \\left|x_1 - 1\\right| - 0.6\\left|x_2 + 0.8\\right|)",
     difficulty: "hard",
     par: "1 hidden · 4 relu + relu output",
     targetFn: (x1, x2) => Math.max(0, 2 - Math.abs(x1 - 1) - 0.6 * Math.abs(x2 + 0.8)),
@@ -210,7 +210,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "offset_roofline",
     name: "Offset Roofline",
-    formula: "0.25x_2 + \\max(0, x_1 + 2) - 1.6\\max(0, x_1 - 0.5) + 0.6\\max(0, x_1 - 3)",
+    formula: "f(x_1, x_2) = 0.25x_2 + \\max(0, x_1 + 2) - 1.6\\max(0, x_1 - 0.5) + 0.6\\max(0, x_1 - 3)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 4 relu",
@@ -232,7 +232,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "tilted_notch",
     name: "Tilted Notch",
-    formula: "\\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.5\\max(0, x_1 - x_2 - 1.5)",
+    formula: "f(x_1, x_2) = \\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.5\\max(0, x_1 - x_2 - 1.5)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 3 relu",
@@ -254,7 +254,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "kinked_valley",
     name: "Kinked Valley",
-    formula: "\\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
+    formula: "f(x_1, x_2) = \\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · ~5 relu",
@@ -277,7 +277,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "offcenter_diamond_cap",
     name: "Offcenter Diamond Cap",
-    formula: "\\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
+    formula: "f(x_1, x_2) = \\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · ~4 relu + relu output",
@@ -299,7 +299,7 @@ export const CHALLENGE_DEFS = [
   {
     id: "diagonal_toll_booth",
     name: "Diagonal Toll Booth",
-    formula: "\\max(0, x_1 - x_2 + 1.2) - \\max(0, x_1 - x_2 - 1.2) + 0.4\\max(0, x_2 + 0.5)",
+    formula: "f(x_1, x_2) = \\max(0, x_1 - x_2 + 1.2) - \\max(0, x_1 - x_2 - 1.2) + 0.4\\max(0, x_2 + 0.5)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 3 relu",
@@ -321,7 +321,7 @@ export const CHALLENGE_DEFS = [
     id: "three_axis_fold",
     name: "Three Axis Fold",
     formula:
-      "0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
+      "f(x_1, x_2) = 0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
     par: "1 hidden · 4 relu",
