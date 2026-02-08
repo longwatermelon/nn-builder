@@ -178,70 +178,10 @@ export const CHALLENGE_DEFS = [
       }),
   },
   {
-    id: "roofline_lite",
-    name: "Roofline Lite",
-    formula: "f(x_1, x_2) = 0.25x_2 + \\max(0, x_1 + 1) - 1.2\\max(0, x_1 - 0.5)",
-    difficulty: "hard",
-    targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 1) - 1.2 * Math.max(0, x1 - 0.5),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 0, weights: [0, 1] },
-          { bias: 0, weights: [0, -1] },
-          { bias: 1, weights: [1, 0] },
-          { bias: -0.5, weights: [1, 0] },
-        ],
-        outputWeights: [0.25, -0.25, 1, -1.2],
-        outputBias: 0,
-        outputActivation: "linear",
-      }),
-  },
-  {
-    id: "tilted_notch_lite",
-    name: "Tilted Notch Lite",
-    formula: "f(x_1, x_2) = \\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.35\\max(0, x_1 - x_2 - 1.2)",
-    difficulty: "hard",
-    targetFn: (x1, x2) =>
-      Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.35 * Math.max(0, x1 - x2 - 1.2),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 1, weights: [1, 0.5] },
-          { bias: -1, weights: [1, 0.5] },
-          { bias: -1.2, weights: [1, -1] },
-        ],
-        outputWeights: [1, -1, -0.35],
-        outputBias: 0,
-        outputActivation: "linear",
-      }),
-  },
-  {
-    id: "diamond_cap_lite",
-    name: "Diamond Cap Lite",
-    formula: "f(x_1, x_2) = \\max(0, 2 - \\left|x_1 - 1\\right| - 0.6\\left|x_2 + 0.8\\right|)",
-    difficulty: "hard",
-    targetFn: (x1, x2) => Math.max(0, 2 - Math.abs(x1 - 1) - 0.6 * Math.abs(x2 + 0.8)),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: -1, weights: [1, 0] },
-          { bias: 1, weights: [-1, 0] },
-          { bias: 0.8, weights: [0, 1] },
-          { bias: -0.8, weights: [0, -1] },
-        ],
-        outputWeights: [-1, -1, -0.6, -0.6],
-        outputBias: 2,
-        outputActivation: "relu",
-      }),
-  },
-  {
     id: "kinked_valley",
     name: "Kinked Valley",
     formula: "f(x_1, x_2) = \\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
-    difficulty: "insane",
+    difficulty: "hard",
     targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -262,7 +202,7 @@ export const CHALLENGE_DEFS = [
     id: "offcenter_diamond_cap",
     name: "Offcenter Diamond Cap",
     formula: "f(x_1, x_2) = \\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
-    difficulty: "insane",
+    difficulty: "hard",
     targetFn: (x1, x2) => Math.max(0, 2.2 - Math.abs(x1 - 1.2) - 0.6 * Math.abs(x2 + 0.8)),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -283,7 +223,7 @@ export const CHALLENGE_DEFS = [
     name: "Three Axis Fold",
     formula:
       "f(x_1, x_2) = 0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
-    difficulty: "insane",
+    difficulty: "hard",
     hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
     targetFn: (x1, x2) =>
       0.2 * x1 + Math.max(0, x1 + x2 - 1) - 0.9 * Math.max(0, x1 - 1.5 * x2 - 0.5) + 0.7 * Math.max(0, -x1 + 0.4 * x2 + 1.5),
@@ -305,7 +245,7 @@ export const CHALLENGE_DEFS = [
     id: "input_product",
     name: "Input Product",
     formula: "f(x_1, x_2) = x_1 \\cdot x_2",
-    difficulty: "exploratory",
+    difficulty: "insane",
     hint: "Build |x+y|, |x|, |y|, then approximate squares with ReLU hinges.",
     targetFn: (x1, x2) => x1 * x2,
     solutionFactory: () => createInterpretableReluProductSolution(),
@@ -314,7 +254,7 @@ export const CHALLENGE_DEFS = [
     id: "sine_wave",
     name: "Sine Wave",
     formula: "f(x_1, x_2) = \\sin(x_1)",
-    difficulty: "exploratory",
+    difficulty: "insane",
     targetFn: (x1) => Math.sin(x1),
     solutionFactory: () =>
       createSingleHiddenSolution({

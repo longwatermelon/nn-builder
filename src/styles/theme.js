@@ -22,7 +22,6 @@ export const DIFFICULTY_COLORS = {
   medium: "#f59e0b",
   hard: "#ef4444",
   insane: "#8b5cf6",
-  exploratory: "#ffffff",
 };
 
 export const btnStyle = {
