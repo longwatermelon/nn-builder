@@ -37,7 +37,6 @@ export const CHALLENGE_DEFS = [
     name: "Identity",
     formula: "f(x_1, x_2) = x_1",
     difficulty: "tutorial",
-    par: "0 hidden · linear",
     targetFn: (x1) => x1,
     solutionFactory: () => createLinearSolution([1, 0], 0, "linear"),
   },
@@ -46,7 +45,6 @@ export const CHALLENGE_DEFS = [
     name: "Input Sum",
     formula: "f(x_1, x_2) = x_1 + x_2",
     difficulty: "tutorial",
-    par: "0 hidden · linear",
     targetFn: (x1, x2) => x1 + x2,
     solutionFactory: () => createLinearSolution([1, 1], 0, "linear"),
   },
@@ -55,7 +53,6 @@ export const CHALLENGE_DEFS = [
     name: "ReLU Ramp",
     formula: "f(x_1, x_2) = \\max(0, x_1)",
     difficulty: "tutorial",
-    par: "0 hidden · relu output",
     targetFn: (x1) => Math.max(0, x1),
     solutionFactory: () => createLinearSolution([1, 0], 0, "relu"),
   },
@@ -64,7 +61,6 @@ export const CHALLENGE_DEFS = [
     name: "Tanh Curve",
     formula: "f(x_1, x_2) = \\tanh(x_1)",
     difficulty: "tutorial",
-    par: "0 hidden · tanh output",
     targetFn: (x1) => Math.tanh(x1),
     solutionFactory: () => createLinearSolution([1, 0], 0, "tanh"),
   },
@@ -73,7 +69,6 @@ export const CHALLENGE_DEFS = [
     name: "Linear Combo",
     formula: "f(x_1, x_2) = 2x_1 - x_2 + 1",
     difficulty: "easy",
-    par: "0 hidden · linear",
     targetFn: (x1, x2) => 2 * x1 - x2 + 1,
     solutionFactory: () => createLinearSolution([2, -1], 1, "linear"),
   },
@@ -82,7 +77,6 @@ export const CHALLENGE_DEFS = [
     name: "Step Edge",
     formula: "f(x_1, x_2) = \\begin{cases}1,&x_1 \\ge 0\\\\-1,&x_1 < 0\\end{cases}",
     difficulty: "easy",
-    par: "0 hidden · tanh output",
     targetFn: (x1) => (x1 >= 0 ? 1 : -1),
     solutionFactory: () => createLinearSolution([2.8, 0], 0, "tanh"),
   },
@@ -91,7 +85,6 @@ export const CHALLENGE_DEFS = [
     name: "Absolute Value",
     formula: "f(x_1, x_2) = \\left|x_1\\right|",
     difficulty: "medium",
-    par: "1 hidden · 2 relu",
     targetFn: (x1) => Math.abs(x1),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -110,7 +103,6 @@ export const CHALLENGE_DEFS = [
     name: "Max Of Two",
     formula: "f(x_1, x_2) = \\max(x_1, x_2)",
     difficulty: "medium",
-    par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(x1, x2),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -130,7 +122,6 @@ export const CHALLENGE_DEFS = [
     name: "Absolute Difference",
     formula: "f(x_1, x_2) = \\left|x_1 - x_2\\right|",
     difficulty: "medium",
-    par: "1 hidden · 2 relu",
     targetFn: (x1, x2) => Math.abs(x1 - x2),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -149,7 +140,6 @@ export const CHALLENGE_DEFS = [
     name: "Roofline Lite",
     formula: "f(x_1, x_2) = 0.25x_2 + \\max(0, x_1 + 1) - 1.2\\max(0, x_1 - 0.5)",
     difficulty: "hard",
-    par: "1 hidden · 4 relu",
     targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 1) - 1.2 * Math.max(0, x1 - 0.5),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -170,7 +160,6 @@ export const CHALLENGE_DEFS = [
     name: "Tilted Notch Lite",
     formula: "f(x_1, x_2) = \\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.35\\max(0, x_1 - x_2 - 1.2)",
     difficulty: "hard",
-    par: "1 hidden · 3 relu",
     targetFn: (x1, x2) =>
       Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.35 * Math.max(0, x1 - x2 - 1.2),
     solutionFactory: () =>
@@ -191,7 +180,6 @@ export const CHALLENGE_DEFS = [
     name: "Diamond Cap Lite",
     formula: "f(x_1, x_2) = \\max(0, 2 - \\left|x_1 - 1\\right| - 0.6\\left|x_2 + 0.8\\right|)",
     difficulty: "hard",
-    par: "1 hidden · 4 relu + relu output",
     targetFn: (x1, x2) => Math.max(0, 2 - Math.abs(x1 - 1) - 0.6 * Math.abs(x2 + 0.8)),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -213,7 +201,6 @@ export const CHALLENGE_DEFS = [
     formula: "f(x_1, x_2) = 0.25x_2 + \\max(0, x_1 + 2) - 1.6\\max(0, x_1 - 0.5) + 0.6\\max(0, x_1 - 3)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
-    par: "1 hidden · 4 relu",
     targetFn: (x1, x2) => 0.25 * x2 + Math.max(0, x1 + 2) - 1.6 * Math.max(0, x1 - 0.5) + 0.6 * Math.max(0, x1 - 3),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -235,7 +222,6 @@ export const CHALLENGE_DEFS = [
     formula: "f(x_1, x_2) = \\max(0, x_1 + 0.5x_2 + 1) - \\max(0, x_1 + 0.5x_2 - 1) - 0.5\\max(0, x_1 - x_2 - 1.5)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
-    par: "1 hidden · 3 relu",
     targetFn: (x1, x2) =>
       Math.max(0, x1 + 0.5 * x2 + 1) - Math.max(0, x1 + 0.5 * x2 - 1) - 0.5 * Math.max(0, x1 - x2 - 1.5),
     solutionFactory: () =>
@@ -257,7 +243,6 @@ export const CHALLENGE_DEFS = [
     formula: "f(x_1, x_2) = \\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
-    par: "1 hidden · ~5 relu",
     targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -280,7 +265,6 @@ export const CHALLENGE_DEFS = [
     formula: "f(x_1, x_2) = \\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
-    par: "1 hidden · ~4 relu + relu output",
     targetFn: (x1, x2) => Math.max(0, 2.2 - Math.abs(x1 - 1.2) - 0.6 * Math.abs(x2 + 0.8)),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -302,7 +286,6 @@ export const CHALLENGE_DEFS = [
     formula: "f(x_1, x_2) = \\max(0, x_1 - x_2 + 1.2) - \\max(0, x_1 - x_2 - 1.2) + 0.4\\max(0, x_2 + 0.5)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
-    par: "1 hidden · 3 relu",
     targetFn: (x1, x2) => Math.max(0, x1 - x2 + 1.2) - Math.max(0, x1 - x2 - 1.2) + 0.4 * Math.max(0, x2 + 0.5),
     solutionFactory: () =>
       createSingleHiddenSolution({
@@ -324,7 +307,6 @@ export const CHALLENGE_DEFS = [
       "f(x_1, x_2) = 0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
     difficulty: "insane",
     hideFormulaInLibrary: true,
-    par: "1 hidden · 4 relu",
     hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
     targetFn: (x1, x2) =>
       0.2 * x1 + Math.max(0, x1 + x2 - 1) - 0.9 * Math.max(0, x1 - 1.5 * x2 - 0.5) + 0.7 * Math.max(0, -x1 + 0.4 * x2 + 1.5),

@@ -71,9 +71,8 @@ export default function ChallengeLibrary({
               )}
               <div style={{ display: "flex", gap: 10 }}>
                 <ChallengeThumbnail values={challenge.targetGrid.values} min={challenge.targetGrid.min} max={challenge.targetGrid.max} />
-                <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: 11, color: COLORS.textMuted }}>
-                  <div>Par: {challenge.par}</div>
-                  <div style={{ color: solved ? COLORS.success : COLORS.textMuted, fontWeight: 600 }}>{solved ? "✓ Solved" : "Unsolved"}</div>
+                <div style={{ display: "flex", alignItems: "center", fontSize: 11, color: solved ? COLORS.success : COLORS.textMuted, fontWeight: 600 }}>
+                  {solved ? "✓ Solved" : "Unsolved"}
                 </div>
               </div>
             </button>
