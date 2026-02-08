@@ -21,7 +21,8 @@ const LAYER_CONTROL_NEURON_GAP = 12;
 const LAYER_CONTROL_ZONE = LAYER_CONTROL_BOTTOM + LAYER_CONTROL_HEIGHT;
 const NEURON_BOTTOM_BUFFER = Math.max(PAD_Y + MAX_NEURON_R, MAX_NEURON_R + LAYER_CONTROL_NEURON_GAP + LAYER_CONTROL_ZONE);
 const LAYER_CARD_WIDTH = 100;
-const GRAPH_LAYER_GAP = 152;
+const GRAPH_LAYER_MAX_GAP = 260;
+const GRAPH_LAYER_MIN_GAP = 120;
 const MIN_GRAPH_HEIGHT = 200;
 const MAX_GRAPH_HEIGHT = 800;
 
@@ -92,22 +93,31 @@ const LAYER_CONTROL_COUNT_STYLE = {
   fontFamily: "'DM Mono', monospace",
 };
 
+const INSERT_HIDDEN_BUTTON_SIZE = 28;
+const INSERT_HIDDEN_BUTTON_RADIUS = INSERT_HIDDEN_BUTTON_SIZE / 2;
+const INSERT_HIDDEN_BUTTON_Y_OFFSET = 0;
+const INSERT_HIDDEN_BUTTON_EDGE_GAP = 8;
+
 const INSERT_HIDDEN_LAYER_BUTTON_STYLE = {
   position: "absolute",
-  bottom: LAYER_CONTROL_BOTTOM + 30,
-  transform: "translateX(-50%)",
-  borderRadius: 999,
+  transform: "translate(-50%, -50%)",
+  width: INSERT_HIDDEN_BUTTON_SIZE,
+  height: INSERT_HIDDEN_BUTTON_SIZE,
+  borderRadius: "50%",
   border: `1px solid ${COLORS.accent}55`,
   background: COLORS.accentDim,
   color: COLORS.accent,
   cursor: "pointer",
-  fontSize: 10,
-  fontWeight: 600,
-  padding: "4px 8px",
+  fontSize: 18,
+  fontWeight: 700,
+  padding: 0,
   pointerEvents: "auto",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
   lineHeight: 1,
   zIndex: 1,
-  whiteSpace: "nowrap",
+  fontFamily: "'DM Mono', monospace",
 };
 
 export default function NetworkView({
@@ -143,7 +153,13 @@ export default function NetworkView({
     return `h${layerIdx}.${neuronIdx + 1}`;
   };
 
-  const graphMinWidth = useMemo(() => PAD_X * 2 + GRAPH_LAYER_GAP * Math.max(1, layers.length - 1), [layers.length]);
+  const layerConnectionCount = Math.max(1, layers.length - 1);
+  const graphLayerGap = useMemo(() => {
+    const unclampedGap = GRAPH_LAYER_MAX_GAP / layerConnectionCount;
+    return Math.max(GRAPH_LAYER_MIN_GAP, Math.min(GRAPH_LAYER_MAX_GAP, unclampedGap));
+  }, [layerConnectionCount]);
+  const graphLayoutWidth = graphLayerGap * layerConnectionCount;
+  const graphMinWidth = useMemo(() => Math.ceil(PAD_X * 2 + graphLayoutWidth), [graphLayoutWidth]);
   const graphWidth = Math.max(graphViewportWidth, graphMinWidth);
   const minGraphHeight = useMemo(() => {
     const largestLayerSize = layerSizes.reduce((maxSize, size) => Math.max(maxSize, size || 0), 1);
@@ -159,13 +175,14 @@ export default function NetworkView({
   const neuronPositions = useMemo(() => {
     const positions = [];
     const numLayers = layers.length;
-    const usableW = graphWidth - PAD_X * 2;
+    const layerSpan = numLayers === 1 ? 0 : graphLayerGap * (numLayers - 1);
+    const firstLayerX = (graphWidth - layerSpan) / 2;
     const neuronTop = NEURON_TOP_BUFFER;
     const neuronBottom = SVG_H - NEURON_BOTTOM_BUFFER;
     const usableH = Math.max(0, neuronBottom - neuronTop);
     for (let l = 0; l < numLayers; l++) {
       const size = layerSizes[l];
-      const x = numLayers === 1 ? graphWidth / 2 : PAD_X + (l / (numLayers - 1)) * usableW;
+      const x = numLayers === 1 ? graphWidth / 2 : firstLayerX + l * graphLayerGap;
       const layerPositions = [];
       for (let n = 0; n < size; n++) {
         const y = size === 1 ? (neuronTop + neuronBottom) / 2 : neuronTop + (n / (size - 1)) * usableH;
@@ -174,7 +191,7 @@ export default function NetworkView({
       positions.push(layerPositions);
     }
     return positions;
-  }, [layers.length, layerSizes, SVG_H, graphWidth]);
+  }, [layers.length, layerSizes, SVG_H, graphWidth, graphLayerGap]);
 
   useEffect(() => {
     if (!graphPaneRef.current) return;
@@ -196,6 +213,18 @@ export default function NetworkView({
     observer.observe(graphPaneRef.current);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const pane = graphPaneRef.current;
+    if (!pane) return;
+    const maxScrollLeft = Math.max(0, graphWidth - graphViewportWidth);
+    if (maxScrollLeft <= 0) {
+      pane.scrollLeft = 0;
+      return;
+    }
+    const shouldCenterOverflow = layers.length > 2 && graphLayerGap <= GRAPH_LAYER_MIN_GAP;
+    pane.scrollLeft = shouldCenterOverflow ? maxScrollLeft / 2 : 0;
+  }, [graphWidth, graphViewportWidth, layers.length, graphLayerGap]);
 
   // drag handle adjusts graph height without changing other panel layout
   useEffect(() => {
@@ -398,17 +427,32 @@ export default function NetworkView({
               })}
 
               {layers.length >= 2 && (() => {
-                const leftX = neuronPositions[layers.length - 2]?.[0]?.x;
-                const rightX = neuronPositions[layers.length - 1]?.[0]?.x;
-                if (typeof leftX !== "number" || typeof rightX !== "number") return null;
-                const insertX = (leftX + rightX) / 2;
+                const leftLayerPositions = neuronPositions[layers.length - 2];
+                const rightLayerPositions = neuronPositions[layers.length - 1];
+                const leftBottom = leftLayerPositions?.[leftLayerPositions.length - 1] ?? leftLayerPositions?.[0];
+                const rightAnchor = rightLayerPositions?.[rightLayerPositions.length - 1] ?? rightLayerPositions?.[0];
+                if (!leftBottom || !rightAnchor) return null;
+
+                const midpointX = (leftBottom.x + rightAnchor.x) / 2;
+                const minX = INSERT_HIDDEN_BUTTON_RADIUS + INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                const maxX = graphWidth - INSERT_HIDDEN_BUTTON_RADIUS - INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                const insertX = Math.min(maxX, Math.max(minX, midpointX));
+                const minY = INSERT_HIDDEN_BUTTON_RADIUS + INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                const maxY = SVG_H - INSERT_HIDDEN_BUTTON_RADIUS - INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                const insertY = Math.min(maxY, Math.max(minY, leftBottom.y + INSERT_HIDDEN_BUTTON_Y_OFFSET));
+
                 return (
                   <button
                     onClick={addHiddenLayer}
                     title="Add hidden layer"
-                    style={{ ...INSERT_HIDDEN_LAYER_BUTTON_STYLE, left: `${(insertX / graphWidth) * 100}%` }}
+                    aria-label="Add hidden layer"
+                    style={{
+                      ...INSERT_HIDDEN_LAYER_BUTTON_STYLE,
+                      left: `${(insertX / graphWidth) * 100}%`,
+                      top: `${(insertY / SVG_H) * 100}%`,
+                    }}
                   >
-                    + hidden
+                    +
                   </button>
                 );
               })()}
