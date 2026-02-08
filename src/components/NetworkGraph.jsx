@@ -7,6 +7,9 @@ const SVG_W = 560;
 const PAD_X = 60;
 const PAD_Y = 30;
 const NEURON_R = 22;
+const NEURON_TOP_BUFFER = PAD_Y + 10;
+const NEURON_BOTTOM_BUFFER = PAD_Y + 20;
+const LAYER_LABEL_BOTTOM_BUFFER = 10;
 
 export default function NetworkGraph({
   layers,
@@ -33,13 +36,15 @@ export default function NetworkGraph({
     const positions = [];
     const numLayers = layers.length;
     const usableW = SVG_W - PAD_X * 2;
-    const usableH = SVG_H - PAD_Y * 2;
+    const neuronTop = NEURON_TOP_BUFFER;
+    const neuronBottom = SVG_H - NEURON_BOTTOM_BUFFER;
+    const usableH = Math.max(0, neuronBottom - neuronTop);
     for (let l = 0; l < numLayers; l++) {
       const size = layerSizes[l];
       const x = numLayers === 1 ? SVG_W / 2 : PAD_X + (l / (numLayers - 1)) * usableW;
       const layerPositions = [];
       for (let n = 0; n < size; n++) {
-        const y = size === 1 ? SVG_H / 2 : PAD_Y + (n / (size - 1)) * usableH;
+        const y = size === 1 ? (neuronTop + neuronBottom) / 2 : neuronTop + (n / (size - 1)) * usableH;
         layerPositions.push({ x, y });
       }
       positions.push(layerPositions);
@@ -186,7 +191,7 @@ export default function NetworkGraph({
               <text
                 key={`lbl-${li}`}
                 x={x}
-                y={SVG_H - 6}
+                y={SVG_H - LAYER_LABEL_BOTTOM_BUFFER}
                 textAnchor="middle"
                 fill={COLORS.textMuted}
                 fontSize="9"
