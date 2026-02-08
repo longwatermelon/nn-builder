@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MATCH_SCORE_THRESHOLD } from "../features/challenges/score";
 import { copyTextToClipboard } from "../lib/clipboard";
 import { DOMAIN, GRID, drawHeatmap } from "../lib/heatmap";
@@ -21,6 +21,7 @@ export default function ResultsPanel({
   canRestoreAttempt,
   networkGrid,
   heatmapScale,
+  inputValues,
   handleShowSolution,
   handleRestoreAttempt,
   handleTryAnother,
@@ -29,6 +30,20 @@ export default function ResultsPanel({
   const targetCanvasRef = useRef(null);
   const formulaCopyTimeoutRef = useRef(null);
   const [copiedFormulaChallengeId, setCopiedFormulaChallengeId] = useState(null);
+  const [isInputMarkerVisible, setIsInputMarkerVisible] = useState(false);
+
+  const markerPoint = useMemo(() => {
+    if (!isInputMarkerVisible) return null;
+    return {
+      x1: inputValues[0] ?? 0,
+      x2: inputValues[1] ?? 0,
+    };
+  }, [isInputMarkerVisible, inputValues]);
+
+  const heatmapDrawOptions = useMemo(
+    () => ({ ...HEATMAP_DRAW_OPTIONS, markerPoint }),
+    [markerPoint]
+  );
 
   // clear pending copied-state timer on unmount
   useEffect(
@@ -54,8 +69,8 @@ export default function ResultsPanel({
 
   // redraw user output whenever network samples or scale changes
   useEffect(() => {
-    drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, HEATMAP_DRAW_OPTIONS);
-  }, [networkGrid, heatmapScale.min, heatmapScale.max, isChallengeSelected]);
+    drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, heatmapDrawOptions);
+  }, [networkGrid, heatmapScale.min, heatmapScale.max, isChallengeSelected, heatmapDrawOptions]);
 
   // redraw target only while challenge mode is active
   useEffect(() => {
@@ -65,9 +80,9 @@ export default function ResultsPanel({
       activeChallenge.targetGrid.values,
       heatmapScale.min,
       heatmapScale.max,
-      HEATMAP_DRAW_OPTIONS
+      heatmapDrawOptions
     );
-  }, [isChallengeSelected, activeChallenge, heatmapScale.min, heatmapScale.max]);
+  }, [isChallengeSelected, activeChallenge, heatmapScale.min, heatmapScale.max, heatmapDrawOptions]);
 
   return (
     <div
@@ -100,6 +115,20 @@ export default function ResultsPanel({
             <MathText tex="f(x_1, x_2)" style={{ fontSize: 12, color: COLORS.textMuted, textTransform: "none", letterSpacing: 0 }} />
           </span>
         )}
+      </div>
+
+      <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
+        <button
+          onClick={() => setIsInputMarkerVisible((prev) => !prev)}
+          aria-pressed={isInputMarkerVisible}
+          style={{
+            ...subtleBtnStyle,
+            color: isInputMarkerVisible ? COLORS.accent : COLORS.textMuted,
+            borderColor: isInputMarkerVisible ? `${COLORS.accent}65` : COLORS.panelBorder,
+          }}
+        >
+          {isInputMarkerVisible ? "Hide Input Marker" : "Show Input Marker"}
+        </button>
       </div>
 
       {isChallengeSelected && activeChallenge && (

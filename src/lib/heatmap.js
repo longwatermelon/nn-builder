@@ -35,6 +35,80 @@ function gridRowToX2(rowIndex) {
   return DOMAIN[1] - (rowIndex / (GRID - 1)) * DOMAIN_SPAN;
 }
 
+function domainToPlotX(x1, plotW) {
+  const maxX = Math.max(0, plotW - 1);
+  const t = (x1 - DOMAIN[0]) / DOMAIN_SPAN;
+  return t * maxX;
+}
+
+function domainToPlotY(x2, plotH) {
+  const maxY = Math.max(0, plotH - 1);
+  const t = (x2 - DOMAIN[0]) / DOMAIN_SPAN;
+  return (1 - t) * maxY;
+}
+
+function drawInputMarker(ctx, markerPoint, plotW, plotH) {
+  if (!markerPoint) return;
+  const { x1, x2 } = markerPoint;
+  if (!Number.isFinite(x1) || !Number.isFinite(x2)) return;
+
+  const maxX = Math.max(0, plotW - 1);
+  const maxY = Math.max(0, plotH - 1);
+  const rawX = domainToPlotX(x1, plotW);
+  const rawY = domainToPlotY(x2, plotH);
+  const px = clamp(rawX, 0, maxX);
+  const py = clamp(rawY, 0, maxY);
+  const isOutOfBounds = !Object.is(px, rawX) || !Object.is(py, rawY);
+
+  ctx.save();
+
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = isOutOfBounds ? "rgba(255, 80, 128, 0.5)" : "rgba(232, 240, 255, 0.55)";
+  ctx.beginPath();
+  ctx.moveTo(px, 0);
+  ctx.lineTo(px, maxY);
+  ctx.moveTo(0, py);
+  ctx.lineTo(maxX, py);
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(px, py, 7, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(3, 8, 18, 0.75)";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = isOutOfBounds ? COLORS.negative : "rgba(238, 243, 255, 0.95)";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(px, py, 3, 0, Math.PI * 2);
+  ctx.fillStyle = isOutOfBounds ? COLORS.negative : COLORS.accent;
+  ctx.fill();
+
+  if (isOutOfBounds) {
+    const dx = rawX - px;
+    const dy = rawY - py;
+    const norm = Math.hypot(dx, dy) || 1;
+    const ux = dx / norm;
+    const uy = dy / norm;
+    const baseX = clamp(px - ux * 7, 0, maxX);
+    const baseY = clamp(py - uy * 7, 0, maxY);
+    const nx = -uy;
+    const ny = ux;
+
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(baseX + nx * 3.5, baseY + ny * 3.5);
+    ctx.lineTo(baseX - nx * 3.5, baseY - ny * 3.5);
+    ctx.closePath();
+    ctx.fillStyle = COLORS.negative;
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 export function computeGrid(sampleFn) {
   const values = new Float64Array(GRID * GRID);
   let min = Infinity;
@@ -94,6 +168,7 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
   // keep defaults explicit so callers can override only one option
   const showAxes = options.showAxes ?? true;
   const showColorBar = options.showColorBar ?? true;
+  const markerPoint = options.markerPoint ?? null;
 
   const w = canvas.width;
   const h = canvas.height;
@@ -130,8 +205,8 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
   if (showAxes) {
     ctx.strokeStyle = "rgba(220,230,245,0.4)";
     ctx.lineWidth = 1;
-    const cx = (plotW * (0 - DOMAIN[0])) / DOMAIN_SPAN;
-    const cy = h * (1 - (0 - DOMAIN[0]) / DOMAIN_SPAN);
+    const cx = domainToPlotX(0, plotW);
+    const cy = domainToPlotY(0, h);
     ctx.beginPath();
     ctx.moveTo(cx, 0);
     ctx.lineTo(cx, h);
@@ -148,8 +223,8 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
     ctx.fillText("x₂", cx + 14, 14);
     for (let v = -4; v <= 4; v += 2) {
       if (v === 0) continue;
-      const px = (plotW * (v - DOMAIN[0])) / DOMAIN_SPAN;
-      const py2 = h * (1 - (v - DOMAIN[0]) / DOMAIN_SPAN);
+      const px = domainToPlotX(v, plotW);
+      const py2 = domainToPlotY(v, h);
       ctx.fillText(String(v), px, cy + 14);
       ctx.fillText(String(v), cx - 14, py2 + 4);
     }
@@ -172,4 +247,6 @@ export function drawHeatmap(canvas, values, minVal, maxVal, options = {}) {
     ctx.fillText(fmt(maxVal), barX - 3, barY + 8);
     ctx.fillText(fmt(minVal), barX - 3, barY + barH);
   }
+
+  drawInputMarker(ctx, markerPoint, plotW, h);
 }

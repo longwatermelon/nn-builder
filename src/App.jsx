@@ -973,6 +973,7 @@ export default function App() {
             canRestoreAttempt={canRestoreAttempt}
             networkGrid={networkGrid}
             heatmapScale={heatmapScale}
+            inputValues={inputValues}
             handleShowSolution={handleShowSolution}
             handleRestoreAttempt={handleRestoreAttempt}
             handleTryAnother={handleTryAnother}
