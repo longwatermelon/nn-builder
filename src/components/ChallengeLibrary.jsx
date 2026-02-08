@@ -24,7 +24,7 @@ export default function ChallengeLibrary({
         {challengeCatalog.map((challenge) => {
           const solved = Boolean(solvedChallenges[challenge.id]);
           const isSelected = challenge.id === selectedChallengeId;
-          const showFormula = !challenge.hideFormulaInLibrary;
+          const showFormula = true;
           return (
             <button
               key={challenge.id}

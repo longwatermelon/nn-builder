@@ -73,52 +73,25 @@ export default function HeatmapPanel({
 
       {challengeComparisonActive && activeChallenge && (
         <>
-          <div
-            style={{
-              width: "100%",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ minWidth: 0, flex: "1 1 320px" }}>
-              <div style={{ fontSize: 16, color: COLORS.textBright, fontWeight: 700 }}>{activeChallenge.name}</div>
-              {activeChallenge.hideFormulaInLibrary ? (
-                <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>
-                  {activeChallenge.difficulty} · par {activeChallenge.par}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: COLORS.textMuted,
-                    marginTop: 2,
-                    minWidth: 0,
-                  }}
-                >
-                  <MathText tex={activeChallenge.formula} style={{ fontSize: 13, color: COLORS.textMuted, display: "block" }} />
-                  <div style={{ marginTop: 2 }}>
-                    {activeChallenge.difficulty} · par {activeChallenge.par}
-                  </div>
-                </div>
-              )}
-              {activeChallenge.hint && <div style={{ fontSize: 12, color: COLORS.accent, marginTop: 3 }}>Hint: {activeChallenge.hint}</div>}
+          <div style={{ width: "100%", position: "relative" }}>
+            <div style={{ textAlign: "center", padding: "0 90px" }}>
+              <MathText tex={activeChallenge.formula} style={{ fontSize: 16, color: "#fff", fontWeight: 600 }} />
+              {activeChallenge.hint && <div style={{ fontSize: 12, color: COLORS.accent, marginTop: 5 }}>Hint: {activeChallenge.hint}</div>}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={handleShowSolution}
-                disabled={isRevealingSolution || isSolutionRevealed}
-                style={{
-                  ...subtleBtnStyle,
-                  opacity: isRevealingSolution || isSolutionRevealed ? 0.6 : 1,
-                  cursor: isRevealingSolution || isSolutionRevealed ? "default" : "pointer",
-                }}
-              >
-                {isRevealingSolution ? "Revealing..." : isSolutionRevealed ? "Solution Shown" : "Show Solution"}
-              </button>
-            </div>
+            <button
+              onClick={handleShowSolution}
+              disabled={isRevealingSolution || isSolutionRevealed}
+              style={{
+                ...subtleBtnStyle,
+                position: "absolute",
+                right: 0,
+                top: 0,
+                opacity: isRevealingSolution || isSolutionRevealed ? 0.6 : 1,
+                cursor: isRevealingSolution || isSolutionRevealed ? "default" : "pointer",
+              }}
+            >
+              {isRevealingSolution ? "Revealing..." : isSolutionRevealed ? "Solution Shown" : "Show Solution"}
+            </button>
           </div>
 
           <div
