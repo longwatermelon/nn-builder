@@ -67,6 +67,21 @@ export default function ResultsPanel({
     }
   };
 
+  const renderInputMarkerButton = (style = {}) => (
+    <button
+      onClick={() => setIsInputMarkerVisible((prev) => !prev)}
+      aria-pressed={isInputMarkerVisible}
+      style={{
+        ...subtleBtnStyle,
+        color: isInputMarkerVisible ? COLORS.accent : COLORS.textMuted,
+        borderColor: isInputMarkerVisible ? `${COLORS.accent}65` : COLORS.panelBorder,
+        ...style,
+      }}
+    >
+      {isInputMarkerVisible ? "Hide Input Marker" : "Show Input Marker"}
+    </button>
+  );
+
   // redraw user output whenever network samples or scale changes
   useEffect(() => {
     drawHeatmap(userCanvasRef.current, networkGrid.values, heatmapScale.min, heatmapScale.max, heatmapDrawOptions);
@@ -117,19 +132,11 @@ export default function ResultsPanel({
         )}
       </div>
 
-      <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
-        <button
-          onClick={() => setIsInputMarkerVisible((prev) => !prev)}
-          aria-pressed={isInputMarkerVisible}
-          style={{
-            ...subtleBtnStyle,
-            color: isInputMarkerVisible ? COLORS.accent : COLORS.textMuted,
-            borderColor: isInputMarkerVisible ? `${COLORS.accent}65` : COLORS.panelBorder,
-          }}
-        >
-          {isInputMarkerVisible ? "Hide Input Marker" : "Show Input Marker"}
-        </button>
-      </div>
+      {!isChallengeSelected && (
+        <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
+          {renderInputMarkerButton()}
+        </div>
+      )}
 
       {isChallengeSelected && activeChallenge && (
         <>
@@ -145,7 +152,18 @@ export default function ResultsPanel({
               <MathText tex={activeChallenge.formula} style={{ fontSize: 16, color: "#fff", fontWeight: 600 }} />
               {activeChallenge.hint && <div style={{ fontSize: 12, color: COLORS.accent, marginTop: 5 }}>Hint: {activeChallenge.hint}</div>}
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+            <div
+              style={{
+                width: "100%",
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <div style={{ minWidth: 0, display: "flex", justifyContent: "flex-start" }}>
+                {renderInputMarkerButton({ maxWidth: "100%", whiteSpace: "normal" })}
+              </div>
               <button
                 onClick={handleCopyFormula}
                 style={{
@@ -157,17 +175,21 @@ export default function ResultsPanel({
               >
                 {copiedFormulaChallengeId === activeChallenge.id ? "Copied LaTeX" : "Copy LaTeX"}
               </button>
-              <button
-                onClick={handleShowSolution}
-                disabled={isRevealingSolution || isSolutionRevealed}
-                style={{
-                  ...subtleBtnStyle,
-                  opacity: isRevealingSolution || isSolutionRevealed ? 0.6 : 1,
-                  cursor: isRevealingSolution || isSolutionRevealed ? "default" : "pointer",
-                }}
-              >
-                {isRevealingSolution ? "Revealing..." : isSolutionRevealed ? "Solution Shown" : "Show Solution"}
-              </button>
+              <div style={{ minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={handleShowSolution}
+                  disabled={isRevealingSolution || isSolutionRevealed}
+                  style={{
+                    ...subtleBtnStyle,
+                    opacity: isRevealingSolution || isSolutionRevealed ? 0.6 : 1,
+                    cursor: isRevealingSolution || isSolutionRevealed ? "default" : "pointer",
+                    maxWidth: "100%",
+                    whiteSpace: "normal",
+                  }}
+                >
+                  {isRevealingSolution ? "Revealing..." : isSolutionRevealed ? "Solution Shown" : "Show Solution"}
+                </button>
+              </div>
             </div>
           </div>
 
