@@ -9,6 +9,7 @@ import { computeGrid, computeMSE, computeVariance } from "./lib/heatmap";
 import {
   DEFAULT_INPUT_VALUES,
   NETWORK_IMPORT_LIMITS,
+  PARAM_SLIDERS_STORAGE_KEY,
   REVEAL_DURATION_MS,
   SOLVED_STORAGE_KEY,
   buildParameterDrafts,
@@ -97,7 +98,17 @@ export default function App() {
   const [importTextValue, setImportTextValue] = useState("");
   const [importTextError, setImportTextError] = useState("");
   const [validatedImport, setValidatedImport] = useState(null);
-  const [showParamSliders, setShowParamSliders] = useState(true);
+  const [showParamSliders, setShowParamSliders] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const raw = window.localStorage.getItem(PARAM_SLIDERS_STORAGE_KEY);
+      if (raw == null) return true;
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "boolean" ? parsed : true;
+    } catch {
+      return true;
+    }
+  });
 
   // precompute challenge targets once for stable scoring
   const challengeCatalog = useMemo(
@@ -238,6 +249,16 @@ export default function App() {
       // ignore storage write failures
     }
   }, [solvedChallenges]);
+
+  // persist parameter slider toggle for future sessions
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(PARAM_SLIDERS_STORAGE_KEY, JSON.stringify(showParamSliders));
+    } catch {
+      // ignore storage write failures
+    }
+  }, [showParamSliders]);
 
   // close json menus when clicking outside either menu container
   useEffect(() => {

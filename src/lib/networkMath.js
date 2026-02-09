@@ -9,6 +9,7 @@ export const ACT_FNS = {
 };
 
 export const SOLVED_STORAGE_KEY = "nn-builder-solved-challenges-v1";
+export const PARAM_SLIDERS_STORAGE_KEY = "nn-builder-param-sliders-v1";
 export const REVEAL_DURATION_MS = 1500;
 export const DEFAULT_INPUT_VALUES = [0.5, 0.5];
 export const NETWORK_JSON_SCHEMA = "nn-builder/network";

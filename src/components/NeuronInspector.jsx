@@ -120,24 +120,19 @@ export default function NeuronInspector({
   const customNeuronName = getNeuronCustomName(layers, layerIdx, neuronIdx);
   const neuronTex = getNeuronTex(layers, layerIdx, neuronIdx);
   const nameInputRef = useRef(null);
-  const shouldFocusNameFieldRef = useRef(false);
   const hiddenIncomingWeightIndexSet = useMemo(
     () => new Set(Array.isArray(hiddenIncomingWeightIndexes) ? hiddenIncomingWeightIndexes : []),
     [hiddenIncomingWeightIndexes]
   );
 
   useEffect(() => {
-    if (!sel) {
-      shouldFocusNameFieldRef.current = false;
-      return;
-    }
-    if (!shouldFocusNameFieldRef.current) return;
+    if (!sel) return;
+    if (!showNameField || isRevealingSolution) return;
     const target = nameInputRef.current;
     if (!target) return;
     target.focus();
     requestAnimationFrame(() => target.select());
-    shouldFocusNameFieldRef.current = false;
-  }, [sel]);
+  }, [sel, showNameField, isRevealingSolution]);
 
   if (!sel) {
     return (
@@ -182,11 +177,9 @@ export default function NeuronInspector({
     const neuronCount = layerIdx === 0 ? layers[0]?.neuronCount ?? 0 : layers[layerIdx]?.neurons?.length ?? 0;
     const nextNeuronIdx = neuronIdx + 1;
     if (nextNeuronIdx >= neuronCount) {
-      shouldFocusNameFieldRef.current = false;
       setSel(null);
       return;
     }
-    shouldFocusNameFieldRef.current = true;
     setSel({ layerIdx, neuronIdx: nextNeuronIdx });
   };
 
