@@ -123,13 +123,13 @@ export default function NetworkView({
   layers,
   layerSizes,
   activations,
-  preActivations,
   sel,
   setSel,
   parameterDrafts,
   inputValues,
   draftValidityByKey,
   isRevealingSolution,
+  showParamSliders,
   updateParameterDraft,
   setLayerActivation,
   addNeuron,
@@ -464,12 +464,11 @@ export default function NetworkView({
             sel={sel}
             setSel={setSel}
             layers={layers}
-            activations={activations}
-            preActivations={preActivations}
             parameterDrafts={parameterDrafts}
             inputValues={inputValues}
             draftValidityByKey={draftValidityByKey}
             isRevealingSolution={isRevealingSolution}
+            showParamSliders={showParamSliders}
             updateParameterDraft={updateParameterDraft}
             setNeuronName={setNeuronName}
           />

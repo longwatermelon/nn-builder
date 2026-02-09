@@ -1,9 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import {
-  ACT_FNS,
   biasFieldKey,
   clamp,
-  fmt,
   getDefaultNeuronName,
   getNeuronCustomName,
   getNeuronName,
@@ -45,12 +43,11 @@ export default function NeuronInspector({
   sel,
   setSel,
   layers,
-  activations,
-  preActivations,
   parameterDrafts,
   inputValues,
   draftValidityByKey,
   isRevealingSolution,
+  showParamSliders,
   updateParameterDraft,
   setNeuronName,
 }) {
@@ -61,10 +58,21 @@ export default function NeuronInspector({
   const defaultNeuronLabel = getDefaultNeuronName(layerIdx, neuronIdx, layers.length);
   const customNeuronName = getNeuronCustomName(layers, layerIdx, neuronIdx);
   const neuronLabel = getNeuronName(layers, layerIdx, neuronIdx);
-  const act = activations[layerIdx]?.[neuronIdx];
-  const pre = preActivations[layerIdx]?.[neuronIdx];
-  const [areParamSlidersEnabled, setAreParamSlidersEnabled] = useState(true);
-  const areBiasAndWeightSlidersDisabled = isRevealingSolution || !areParamSlidersEnabled;
+  const nameInputRef = useRef(null);
+  const shouldFocusNameFieldRef = useRef(false);
+
+  useEffect(() => {
+    if (!sel) {
+      shouldFocusNameFieldRef.current = false;
+      return;
+    }
+    if (!shouldFocusNameFieldRef.current) return;
+    const target = nameInputRef.current;
+    if (!target) return;
+    target.focus();
+    requestAnimationFrame(() => target.select());
+    shouldFocusNameFieldRef.current = false;
+  }, [sel]);
 
   if (!sel) {
     return (
@@ -106,6 +114,18 @@ export default function NeuronInspector({
   const commitNameValue = (nextValue) => {
     if (nextValue === customNeuronName) return;
     setNeuronName(layerIdx, neuronIdx, nextValue);
+  };
+
+  const selectNextNeuronInLayer = () => {
+    const neuronCount = layerIdx === 0 ? layers[0]?.neuronCount ?? 0 : layers[layerIdx]?.neurons?.length ?? 0;
+    const nextNeuronIdx = neuronIdx + 1;
+    if (nextNeuronIdx >= neuronCount) {
+      shouldFocusNameFieldRef.current = false;
+      setSel(null);
+      return;
+    }
+    shouldFocusNameFieldRef.current = true;
+    setSel({ layerIdx, neuronIdx: nextNeuronIdx });
   };
 
   const getNeuronTex = (targetLayerIdx, targetNeuronIdx) => {
@@ -153,6 +173,11 @@ export default function NeuronInspector({
           inputMode="decimal"
           value={getFieldText(key, fallback)}
           onChange={(e) => updateParameterDraft(key, e.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            selectNextNeuronInLayer();
+          }}
           onFocus={selectTextOnFocus}
           disabled={isRevealingSolution}
           aria-invalid={isInvalid}
@@ -247,6 +272,7 @@ export default function NeuronInspector({
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>NAME</div>
         <input
+          ref={nameInputRef}
           key={`name-input-${layerIdx}-${neuronIdx}-${customNeuronName}`}
           type="text"
           defaultValue={customNeuronName}
@@ -256,7 +282,7 @@ export default function NeuronInspector({
             if (event.key === "Enter") {
               event.preventDefault();
               commitNameValue(event.currentTarget.value);
-              event.currentTarget.blur();
+              selectNextNeuronInLayer();
             }
             if (event.key === "Escape") {
               event.preventDefault();
@@ -279,49 +305,22 @@ export default function NeuronInspector({
         />
       </div>
 
-      <div
-        style={{
-          background: "rgba(30,30,30,0.8)",
-          borderRadius: 4,
-          padding: 9,
-          marginBottom: 10,
-          border: `1px solid ${COLORS.panelBorder}`,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-          <span style={{ fontSize: 10, color: COLORS.textMuted }}>{isInput ? "Value" : "Activation"}</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textBright, fontFamily: "'DM Mono', monospace" }}>{fmt(act)}</span>
-        </div>
-        {!isInput && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10, color: COLORS.textMuted }}>Pre-activation</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMuted, fontFamily: "'DM Mono', monospace" }}>{fmt(pre)}</span>
-          </div>
-        )}
-        {!isInput && (
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-            <span style={{ fontSize: 10, color: COLORS.textMuted }}>Activation fn</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, fontFamily: "'DM Mono', monospace" }}>
-              {ACT_FNS[layers[layerIdx].activation].label}
-            </span>
-          </div>
-        )}
-      </div>
-
       {isInput && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INPUT VALUE</div>
           {numberInput(inputFieldKey(neuronIdx), inputValues[neuronIdx], neuronLabel)}
-          <input
-            type="range"
-            min={-5}
-            max={5}
-            step={0.01}
-            value={clamp(getFieldNumericValue(inputFieldKey(neuronIdx), inputValues[neuronIdx]), -5, 5)}
-            onChange={(e) => updateParameterDraft(inputFieldKey(neuronIdx), e.target.value)}
-            disabled={isRevealingSolution}
-            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 2 }}
-          />
+          {showParamSliders && (
+            <input
+              type="range"
+              min={-5}
+              max={5}
+              step={0.01}
+              value={clamp(getFieldNumericValue(inputFieldKey(neuronIdx), inputValues[neuronIdx]), -5, 5)}
+              onChange={(e) => updateParameterDraft(inputFieldKey(neuronIdx), e.target.value)}
+              disabled={isRevealingSolution}
+              style={{ width: "100%", accentColor: COLORS.accent, marginTop: 2 }}
+            />
+          )}
         </div>
       )}
 
@@ -341,49 +340,21 @@ export default function NeuronInspector({
       )}
 
       {!isInput && (
-        <div
-          style={{
-            marginBottom: 10,
-            background: "rgba(30,30,30,0.8)",
-            borderRadius: 4,
-            padding: "7px 9px",
-            border: `1px solid ${COLORS.panelBorder}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-          }}
-        >
-          <span style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: 600, letterSpacing: 0.5 }}>SLIDERS</span>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: isRevealingSolution ? "default" : "pointer" }}>
-            <input
-              type="checkbox"
-              checked={areParamSlidersEnabled}
-              onChange={(event) => setAreParamSlidersEnabled(event.target.checked)}
-              disabled={isRevealingSolution}
-              style={{ accentColor: COLORS.accent }}
-            />
-            <span style={{ fontSize: 11, color: COLORS.textBright, fontFamily: "'DM Mono', monospace" }}>
-              {areParamSlidersEnabled ? "enabled" : "disabled"}
-            </span>
-          </label>
-        </div>
-      )}
-
-      {!isInput && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>BIAS</div>
           {numberInput(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias, "b")}
-          <input
-            type="range"
-            min={-5}
-            max={5}
-            step={0.01}
-            value={clamp(getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias), -5, 5)}
-            onChange={(e) => updateParameterDraft(biasFieldKey(layerIdx, neuronIdx), e.target.value)}
-            disabled={areBiasAndWeightSlidersDisabled}
-            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 1, opacity: areBiasAndWeightSlidersDisabled ? 0.45 : 1 }}
-          />
+          {showParamSliders && (
+            <input
+              type="range"
+              min={-5}
+              max={5}
+              step={0.01}
+              value={clamp(getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias), -5, 5)}
+              onChange={(e) => updateParameterDraft(biasFieldKey(layerIdx, neuronIdx), e.target.value)}
+              disabled={isRevealingSolution}
+              style={{ width: "100%", accentColor: COLORS.accent, marginTop: 1 }}
+            />
+          )}
         </div>
       )}
 
@@ -397,22 +368,23 @@ export default function NeuronInspector({
             return (
               <div key={wi}>
                 {numberInput(key, w, `w(${prevLabel})`)}
-                <input
-                  type="range"
-                  min={-5}
-                  max={5}
-                  step={0.01}
-                  value={sliderValue}
-                  onChange={(e) => updateParameterDraft(key, e.target.value)}
-                  disabled={areBiasAndWeightSlidersDisabled}
-                  style={{
-                    width: "100%",
-                    accentColor: sliderValue >= 0 ? COLORS.accent : COLORS.negative,
-                    marginTop: -2,
-                    marginBottom: 5,
-                    opacity: areBiasAndWeightSlidersDisabled ? 0.45 : 1,
-                  }}
-                />
+                {showParamSliders && (
+                  <input
+                    type="range"
+                    min={-5}
+                    max={5}
+                    step={0.01}
+                    value={sliderValue}
+                    onChange={(e) => updateParameterDraft(key, e.target.value)}
+                    disabled={isRevealingSolution}
+                    style={{
+                      width: "100%",
+                      accentColor: sliderValue >= 0 ? COLORS.accent : COLORS.negative,
+                      marginTop: -2,
+                      marginBottom: 5,
+                    }}
+                  />
+                )}
               </div>
             );
           })}

@@ -97,6 +97,7 @@ export default function App() {
   const [importTextValue, setImportTextValue] = useState("");
   const [importTextError, setImportTextError] = useState("");
   const [validatedImport, setValidatedImport] = useState(null);
+  const [showParamSliders, setShowParamSliders] = useState(true);
 
   // precompute challenge targets once for stable scoring
   const challengeCatalog = useMemo(
@@ -151,7 +152,7 @@ export default function App() {
     [layers]
   );
 
-  const { activations, preActivations } = useMemo(
+  const { activations } = useMemo(
     () => forwardPassFull(layers, inputValues),
     [layers, inputValues]
   );
@@ -802,6 +803,26 @@ export default function App() {
             onChange={handleImportNetworkFile}
             style={{ display: "none" }}
           />
+          <label
+            style={{
+              ...btnStyle,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              cursor: isRevealingSolution ? "default" : "pointer",
+              opacity: isRevealingSolution ? 0.55 : 1,
+              padding: "5px 10px",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showParamSliders}
+              onChange={(event) => setShowParamSliders(event.target.checked)}
+              disabled={isRevealingSolution}
+              style={{ accentColor: COLORS.accent }}
+            />
+            <span style={{ fontSize: 11, color: COLORS.textBright, fontFamily: "'DM Mono', monospace" }}>Sliders</span>
+          </label>
           <div ref={importMenuRef} style={{ position: "relative" }}>
             <button
               onClick={() => {
@@ -890,13 +911,13 @@ export default function App() {
             layers={layers}
             layerSizes={layerSizes}
             activations={activations}
-            preActivations={preActivations}
             sel={sel}
             setSel={setSel}
             parameterDrafts={parameterDrafts}
             inputValues={inputValues}
             draftValidityByKey={draftValidity.byKey}
             isRevealingSolution={isRevealingSolution}
+            showParamSliders={showParamSliders}
             updateParameterDraft={updateParameterDraft}
             setLayerActivation={setLayerActivation}
             addNeuron={addNeuron}
