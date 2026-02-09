@@ -1,62 +1,62 @@
-// shared palette tokens used across all panels
+// shared palette tokens — vscode dark+ inspired
 export const COLORS = {
-  bg: "#0b1018",
-  panel: "#131b2c",
-  panelBorder: "#2a3a56",
-  surface: "#1a2540",
-  accent: "#00ecb0",
-  accentDim: "#00ecb025",
-  negative: "#ff5080",
-  negativeDim: "#ff508025",
-  text: "#cdd8ee",
-  textMuted: "#7e90ad",
-  textBright: "#eef3ff",
-  inputNeuron: "#4b90f7",
-  outputNeuron: "#f7a830",
-  selected: "#00ecb0",
-  success: "#36f880",
+  bg: "#1e1e1e",
+  panel: "#252526",
+  panelBorder: "#3c3c3c",
+  surface: "#2d2d2d",
+  accent: "#0098ff",
+  accentDim: "#0098ff20",
+  negative: "#f44747",
+  negativeDim: "#f4474720",
+  text: "#cccccc",
+  textMuted: "#858585",
+  textBright: "#e8e8e8",
+  inputNeuron: "#569cd6",
+  outputNeuron: "#dcdcaa",
+  selected: "#0098ff",
+  success: "#4ec9b0",
 };
 
 export const DIFFICULTY_COLORS = {
-  tutorial: "#34d399",
-  easy: "#60a5fa",
-  medium: "#f59e0b",
-  hard: "#ef4444",
-  insane: "#8b5cf6",
+  tutorial: "#4ec9b0",
+  easy: "#569cd6",
+  medium: "#dcdcaa",
+  hard: "#f44747",
+  insane: "#c586c0",
 };
 
 // base action button style
 export const btnStyle = {
-  background: "none",
+  background: COLORS.surface,
   border: `1px solid ${COLORS.panelBorder}`,
-  borderRadius: 6,
+  borderRadius: 4,
   color: COLORS.text,
   cursor: "pointer",
   padding: "5px 12px",
   fontSize: 12,
   fontFamily: "'Sora', sans-serif",
   fontWeight: 500,
-  transition: "all 0.15s",
+  transition: "background 0.12s, border-color 0.12s",
 };
 
 export const subtleBtnStyle = {
-  background: "none",
+  background: "transparent",
   border: `1px solid ${COLORS.panelBorder}`,
-  borderRadius: 6,
+  borderRadius: 4,
   color: COLORS.textMuted,
   cursor: "pointer",
   padding: "5px 10px",
   fontSize: 11,
   fontFamily: "'Sora', sans-serif",
   fontWeight: 500,
-  transition: "all 0.15s",
+  transition: "background 0.12s, border-color 0.12s",
 };
 
 // compact icon-style controls used in layer chips
 export const smallBtnStyle = {
   background: COLORS.bg,
   border: `1px solid ${COLORS.panelBorder}`,
-  borderRadius: 4,
+  borderRadius: 3,
   color: COLORS.textMuted,
   cursor: "pointer",
   padding: "1px 6px",

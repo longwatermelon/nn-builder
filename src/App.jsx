@@ -49,8 +49,8 @@ const menuStyle = {
   padding: 6,
   background: COLORS.panel,
   border: `1px solid ${COLORS.panelBorder}`,
-  borderRadius: 8,
-  boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+  borderRadius: 4,
+  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
 };
 
 export default function App() {
@@ -692,8 +692,9 @@ export default function App() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.textBright, letterSpacing: -0.5 }}>
-            <span style={{ color: COLORS.accent }}>⬡</span> Neural Network Builder
+          <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.textBright, letterSpacing: -0.3 }}>
+            <span style={{ color: COLORS.accent, fontSize: 14 }}>&#x2B22;</span>{" "}
+            <span style={{ letterSpacing: 0.3, textTransform: "uppercase", fontSize: 11, fontWeight: 700 }}>Neural Network Builder</span>
           </div>
           <span
             style={{
@@ -874,7 +875,7 @@ export default function App() {
             position: "fixed",
             inset: 0,
             zIndex: 40,
-            background: "rgba(5, 8, 16, 0.72)",
+            background: "rgba(0, 0, 0, 0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -886,7 +887,7 @@ export default function App() {
               width: "min(720px, 100%)",
               background: COLORS.panel,
               border: `1px solid ${COLORS.panelBorder}`,
-              borderRadius: 12,
+              borderRadius: 6,
               padding: 14,
               display: "flex",
               flexDirection: "column",
@@ -913,11 +914,10 @@ export default function App() {
                 background: COLORS.bg,
                 color: COLORS.text,
                 border: `1px solid ${COLORS.panelBorder}`,
-                borderRadius: 8,
+                borderRadius: 3,
                 padding: 10,
                 fontSize: 12,
                 lineHeight: 1.5,
-                outline: "none",
                 fontFamily: "'DM Mono', monospace",
               }}
             />

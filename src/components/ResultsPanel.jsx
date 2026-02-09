@@ -103,7 +103,7 @@ export default function ResultsPanel({
     <div
       style={{
         background: COLORS.panel,
-        borderRadius: 10,
+        borderRadius: 4,
         border: `1px solid ${COLORS.panelBorder}`,
         padding: 12,
         display: "flex",
@@ -198,7 +198,7 @@ export default function ResultsPanel({
               width: "100%",
               background: COLORS.bg,
               border: `1px solid ${COLORS.panelBorder}`,
-              borderRadius: 10,
+              borderRadius: 4,
               padding: 10,
             }}
           >
@@ -213,9 +213,9 @@ export default function ResultsPanel({
             </div>
             <div
               style={{
-                height: 12,
-                borderRadius: 999,
-                background: "#1e2d48",
+                height: 10,
+                borderRadius: 2,
+                background: "#333",
                 border: `1px solid ${COLORS.panelBorder}`,
                 overflow: "hidden",
               }}
@@ -238,7 +238,7 @@ export default function ResultsPanel({
                 width: "100%",
                 border: `1px solid ${COLORS.accent}55`,
                 background: COLORS.accentDim,
-                borderRadius: 10,
+                borderRadius: 4,
                 padding: 10,
                 display: "flex",
                 justifyContent: "space-between",
@@ -276,7 +276,7 @@ export default function ResultsPanel({
                 gap: 6,
                 background: COLORS.bg,
                 border: `1px solid ${COLORS.panelBorder}`,
-                borderRadius: 10,
+                borderRadius: 4,
                 padding: 8,
               }}
             >
@@ -303,7 +303,7 @@ export default function ResultsPanel({
                 gap: 6,
                 background: COLORS.bg,
                 border: `1px solid ${COLORS.panelBorder}`,
-                borderRadius: 10,
+                borderRadius: 4,
                 padding: 8,
               }}
             >

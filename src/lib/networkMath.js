@@ -36,13 +36,13 @@ export function lerp(a, b, t) {
 }
 
 const NEURON_STOPS = [
-  [18, 25, 60],
-  [30, 70, 110],
-  [0, 200, 160],
+  [40, 40, 50],
+  [50, 80, 140],
+  [0, 152, 255],
 ];
 
 export function neuronColor(val, alpha = 1) {
-  if (val === undefined || isNaN(val)) return `rgba(90,111,143,${alpha})`;
+  if (val === undefined || isNaN(val)) return `rgba(100,100,110,${alpha})`;
   const t = clamp(1 / (1 + Math.exp(-val * 0.5)), 0, 1);
   const scaled = t * (NEURON_STOPS.length - 1);
   const i = Math.min(Math.floor(scaled), NEURON_STOPS.length - 2);

@@ -123,14 +123,13 @@ export default function NeuronInspector({
           aria-invalid={isInvalid}
           style={{
             flex: 1,
-            background: "rgba(11,16,24,0.9)",
+            background: "rgba(30,30,30,0.9)",
             border: `1px solid ${isInvalid ? COLORS.negative : COLORS.panelBorder}`,
-            borderRadius: 6,
+            borderRadius: 3,
             padding: "5px 7px",
             color: COLORS.textBright,
             fontFamily: "'DM Mono', monospace",
             fontSize: 12,
-            outline: "none",
             boxShadow: isInvalid ? `0 0 0 1px ${COLORS.negativeDim}` : "none",
           }}
         />
@@ -197,9 +196,9 @@ export default function NeuronInspector({
           onClick={() => setSel(null)}
           aria-label="Clear selection"
           style={{
-            background: "rgba(11,16,24,0.7)",
+            background: "rgba(30,30,30,0.7)",
             border: `1px solid ${COLORS.panelBorder}`,
-            borderRadius: 6,
+            borderRadius: 3,
             color: COLORS.textMuted,
             cursor: "pointer",
             padding: "3px 7px",
@@ -212,8 +211,8 @@ export default function NeuronInspector({
 
       <div
         style={{
-          background: "rgba(11,16,24,0.8)",
-          borderRadius: 8,
+          background: "rgba(30,30,30,0.8)",
+          borderRadius: 4,
           padding: 9,
           marginBottom: 10,
           border: `1px solid ${COLORS.panelBorder}`,
@@ -260,8 +259,8 @@ export default function NeuronInspector({
         <div
           style={{
             marginBottom: 10,
-            background: "rgba(11,16,24,0.8)",
-            borderRadius: 8,
+            background: "rgba(30,30,30,0.8)",
+            borderRadius: 4,
             padding: 9,
             border: `1px solid ${COLORS.panelBorder}`,
           }}

@@ -33,7 +33,7 @@ const LAYER_CARD_BASE_STYLE = {
   width: LAYER_CARD_WIDTH,
   background: COLORS.surface,
   border: `1px solid ${COLORS.panelBorder}`,
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 8px 7px",
   display: "flex",
   flexDirection: "column",
@@ -61,7 +61,6 @@ const LAYER_ACTIVATION_SELECT_STYLE = {
   padding: "3px 4px",
   fontSize: 11,
   fontFamily: "'DM Mono', monospace",
-  outline: "none",
   cursor: "pointer",
 };
 
@@ -250,7 +249,7 @@ export default function NetworkView({
     <div
       style={{
         background: COLORS.panel,
-        borderRadius: 10,
+        borderRadius: 4,
         border: `1px solid ${COLORS.panelBorder}`,
         padding: 8,
         flexShrink: 0,
@@ -317,7 +316,7 @@ export default function NetworkView({
                       ? COLORS.inputNeuron
                       : isOutput
                         ? COLORS.outputNeuron
-                        : "#4a6088";
+                        : "#555";
                   return (
                     <g key={`${li}-${ni}`} onClick={() => setSel({ layerIdx: li, neuronIdx: ni })} style={{ cursor: "pointer" }}>
                       <circle
@@ -499,7 +498,7 @@ export default function NetworkView({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: "0 0 10px 10px",
+          borderRadius: "0 0 4px 4px",
           userSelect: "none",
           transition: "background 0.15s",
         }}

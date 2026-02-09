@@ -75,7 +75,7 @@ function drawInputMarker(ctx, markerPoint, plotW, plotH) {
   ctx.setLineDash([]);
   ctx.beginPath();
   ctx.arc(px, py, 7, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(3, 8, 18, 0.75)";
+  ctx.fillStyle = "rgba(20, 20, 20, 0.75)";
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.strokeStyle = isOutOfBounds ? COLORS.negative : "rgba(238, 243, 255, 0.95)";
