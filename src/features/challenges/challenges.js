@@ -237,6 +237,141 @@ function createScalarMulProductSolution() {
   });
 }
 
+function createPhaseWarpSolution() {
+  const relayEps = 0.03;
+  const relayScale = 1 / relayEps;
+
+  return [
+    { type: "input", activation: "linear", neuronCount: 2 },
+    {
+      type: "hidden",
+      activation: "linear",
+      neurons: [
+        { bias: 0, weights: [1, 0], name: "x" },
+        { bias: 0, weights: [2, 0], name: "2x" },
+        { bias: 0, weights: [1, 0], name: "x (cos path)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "cos",
+      neurons: [
+        { bias: -Math.PI / 2, weights: [relayEps, 0, 0], name: "relay(x)" },
+        { bias: -Math.PI / 2, weights: [0, relayEps, 0], name: "relay(2x)" },
+        { bias: 0, weights: [0, 0, 1], name: "cos(x)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "linear",
+      neurons: [
+        { bias: 0, weights: [relayScale, 0, 0], name: "x~" },
+        { bias: 0, weights: [0, relayScale, 0.5], name: "2x + 0.5cos(x)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "sin",
+      neurons: [
+        { bias: 0, weights: [0, 1], name: "sin(2x + 0.5cos(x))" },
+        { bias: 0, weights: [relayEps, 0], name: "relay(x)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "linear",
+      neurons: [
+        { bias: 0, weights: [0, relayScale], name: "x~~" },
+        { bias: 0, weights: [0.8, relayScale], name: "x + 0.8sin(...)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "sin",
+      neurons: [
+        { bias: 0, weights: [0, 1], name: "sin(x + 0.8sin(...))" },
+        { bias: 0, weights: [relayEps, 0], name: "relay(x)" },
+      ],
+    },
+    {
+      type: "output",
+      activation: "linear",
+      neurons: [{ bias: 0, weights: [1, -0.15 * relayScale] }],
+    },
+  ];
+}
+
+function createNestedTrigStackSolution() {
+  const relayEps = 0.02;
+  const argRelayScale = 0.07;
+  const sinRelayScale = 0.1;
+  const cosRelayScale = 0.3;
+
+  return [
+    { type: "input", activation: "linear", neuronCount: 2 },
+    {
+      type: "hidden",
+      activation: "linear",
+      neurons: [
+        { bias: 0, weights: [1, 0], name: "x" },
+        { bias: 0, weights: [2, 0], name: "2x" },
+        { bias: 0, weights: [3, 0], name: "3x" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "sin",
+      neurons: [
+        { bias: 0, weights: [1, 0, 0], name: "sin(x)" },
+        { bias: 0, weights: [0, 1, 0], name: "sin(2x)" },
+        { bias: 0, weights: [0, 0, 1], name: "sin(3x)" },
+        { bias: Math.PI / 2, weights: [1, 0, 0], name: "cos(x) via phase" },
+        { bias: 0, weights: [relayEps, 0, 0], name: "relay(x)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "linear",
+      neurons: [
+        { bias: 0, weights: [0, 1, 0, 1, 0], name: "sin(2x) + cos(x)" },
+        { bias: 0, weights: [0, 0, 1, 1, 0], name: "sin(3x) + cos(x)" },
+        { bias: 0, weights: [1, 0, 0, 0, 0], name: "sin(x)" },
+        { bias: 0, weights: [0, 0, 0, 0, 1 / relayEps], name: "x~" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "sin",
+      neurons: [
+        { bias: 0, weights: [1, 0, 0, 0], name: "sin(sin(2x) + cos(x))" },
+        { bias: 0, weights: [0, argRelayScale, 0, 0], name: "relay(sin(3x) + cos(x))" },
+        { bias: 0, weights: [0, 0, sinRelayScale, 0], name: "relay(sin(x))" },
+        { bias: 0, weights: [0, 0, 0, relayEps], name: "relay(x)" },
+      ],
+    },
+    {
+      type: "hidden",
+      activation: "cos",
+      neurons: [
+        { bias: 0, weights: [1, 0, 0, 0], name: "cos(sin(...))" },
+        { bias: 0, weights: [0, 1 / argRelayScale, 0, 0], name: "cos(sin(3x) + cos(x))" },
+        { bias: -Math.PI / 2, weights: [0, 0, cosRelayScale, 0], name: "relay(sin(x))" },
+        { bias: -Math.PI / 2, weights: [0, 0, 0, 1], name: "relay(x)" },
+      ],
+    },
+    {
+      type: "output",
+      activation: "linear",
+      neurons: [
+        {
+          bias: -1,
+          weights: [1, 3, -1 / (sinRelayScale * cosRelayScale), -0.5 / relayEps],
+        },
+      ],
+    },
+  ];
+}
+
 export const CHALLENGE_DEFS = [
   // tutorial and easy challenges teach core primitives first
   {
@@ -407,6 +542,16 @@ export const CHALLENGE_DEFS = [
       }),
   },
   {
+    id: "phase_warp",
+    name: "Phase Warp",
+    formula:
+      "f(x_1, x_2) = \\sin\\left(x_1 + 0.8\\sin\\left(2x_1 + 0.5\\cos\\left(x_1\\right)\\right)\\right) - 0.15x_1",
+    difficulty: "hard",
+    hint: "Use tiny-angle trig relays to carry x through nested sine and cosine layers.",
+    targetFn: (x1) => Math.sin(x1 + 0.8 * Math.sin(2 * x1 + 0.5 * Math.cos(x1))) - 0.15 * x1,
+    solutionFactory: () => createPhaseWarpSolution(),
+  },
+  {
     id: "input_product",
     name: "Input Product",
     formula: "f(x_1, x_2) = x_1 \\cdot x_2",
@@ -416,44 +561,18 @@ export const CHALLENGE_DEFS = [
     solutionFactory: () => createScalarMulProductSolution(),
   },
   {
-    id: "sine_wave",
-    name: "Sine Wave",
-    formula: "f(x_1, x_2) = \\sin(x_1)",
+    id: "nested_trig_stack",
+    name: "Nested Trig Stack",
+    formula:
+      "f(x_1, x_2) = \\cos\\left(\\sin\\left(\\sin\\left(2x_1\\right) + \\cos\\left(x_1\\right)\\right)\\right) + 3\\cos\\left(\\sin\\left(3x_1\\right) + \\cos\\left(x_1\\right)\\right) - \\sin\\left(x_1\\right) - 0.5x_1 - 1",
     difficulty: "insane",
-    targetFn: (x1) => Math.sin(x1),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "tanh",
-        hiddenNeurons: [
-          { bias: 0.237772, weights: [0.55563, -0.000168] },
-          { bias: 0.402373, weights: [0.482088, -0.001171] },
-          { bias: 0.094491, weights: [0.502461, -0.006282] },
-          { bias: 0.496975, weights: [0.477786, -0.001813] },
-          { bias: -0.13228, weights: [-0.186954, -0.00069] },
-          { bias: 1.976553, weights: [-0.899293, -0.000095] },
-          { bias: 2.881629, weights: [0.857624, 0.000543] },
-          { bias: -0.513163, weights: [-0.473029, -0.00557] },
-          { bias: -1.47704, weights: [-0.695062, 0.00003] },
-          { bias: 0.601725, weights: [0.48149, -0.002664] },
-          { bias: 3.227008, weights: [-0.944779, 0.00035] },
-          { bias: -0.18877, weights: [-0.50841, -0.001528] },
-        ],
-        outputWeights: [
-          3.095853,
-          -0.719523,
-          -0.111042,
-          -0.534438,
-          -3.259329,
-          0.868952,
-          -1.212044,
-          0.291017,
-          0.863039,
-          -0.44723,
-          1.142495,
-          0.44544,
-        ],
-        outputBias: -0.149593,
-        outputActivation: "linear",
-      }),
+    hint: "Carry x and sin(x) with tiny-angle relays while composing trig features.",
+    targetFn: (x1) =>
+      Math.cos(Math.sin(Math.sin(2 * x1) + Math.cos(x1)))
+      + 3 * Math.cos(Math.sin(3 * x1) + Math.cos(x1))
+      - Math.sin(x1)
+      - 0.5 * x1
+      - 1,
+    solutionFactory: () => createNestedTrigStackSolution(),
   },
 ];

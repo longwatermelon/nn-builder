@@ -157,6 +157,10 @@ export default function NeuronInspector({
         return `\\sigma\\left(${affineTex}\\right)`;
       case "tanh":
         return `\\tanh\\left(${affineTex}\\right)`;
+      case "sin":
+        return `\\sin\\left(${affineTex}\\right)`;
+      case "cos":
+        return `\\cos\\left(${affineTex}\\right)`;
       case "linear":
       default:
         return affineTex;

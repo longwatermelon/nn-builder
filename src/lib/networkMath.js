@@ -4,6 +4,8 @@ export const ACT_FNS = {
   lrelu: { fn: (x) => (x > 0 ? x : 0.01 * x), label: "Leaky ReLU", abbr: "LReLU" },
   sigmoid: { fn: (x) => 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x)))), label: "Sigmoid", abbr: "σ" },
   tanh: { fn: (x) => Math.tanh(x), label: "Tanh", abbr: "tanh" },
+  sin: { fn: (x) => Math.sin(x), label: "Sine", abbr: "sin" },
+  cos: { fn: (x) => Math.cos(x), label: "Cosine", abbr: "cos" },
 };
 
 export const SOLVED_STORAGE_KEY = "nn-builder-solved-challenges-v1";
