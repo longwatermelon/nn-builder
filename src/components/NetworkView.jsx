@@ -263,6 +263,7 @@ export default function NetworkView({
               height={SVG_H}
               viewBox={`0 0 ${graphWidth} ${SVG_H}`}
               style={{ width: "100%", height: "100%", display: "block", userSelect: dragging ? "none" : undefined }}
+              onClick={() => setSel(null)}
             >
               <defs>
                 <filter id="glow">
@@ -318,7 +319,18 @@ export default function NetworkView({
                         ? COLORS.outputNeuron
                         : "#555";
                   return (
-                    <g key={`${li}-${ni}`} onClick={() => setSel({ layerIdx: li, neuronIdx: ni })} style={{ cursor: "pointer" }}>
+                    <g
+                      key={`${li}-${ni}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (isSel) {
+                          setSel(null);
+                          return;
+                        }
+                        setSel({ layerIdx: li, neuronIdx: ni });
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
                       <circle
                         cx={pos.x}
                         cy={pos.y}
