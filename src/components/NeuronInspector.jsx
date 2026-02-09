@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ACT_FNS,
   biasFieldKey,
@@ -62,6 +63,8 @@ export default function NeuronInspector({
   const neuronLabel = getNeuronName(layers, layerIdx, neuronIdx);
   const act = activations[layerIdx]?.[neuronIdx];
   const pre = preActivations[layerIdx]?.[neuronIdx];
+  const [areParamSlidersEnabled, setAreParamSlidersEnabled] = useState(true);
+  const areBiasAndWeightSlidersDisabled = isRevealingSolution || !areParamSlidersEnabled;
 
   if (!sel) {
     return (
@@ -338,6 +341,36 @@ export default function NeuronInspector({
       )}
 
       {!isInput && (
+        <div
+          style={{
+            marginBottom: 10,
+            background: "rgba(30,30,30,0.8)",
+            borderRadius: 4,
+            padding: "7px 9px",
+            border: `1px solid ${COLORS.panelBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: 600, letterSpacing: 0.5 }}>SLIDERS</span>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: isRevealingSolution ? "default" : "pointer" }}>
+            <input
+              type="checkbox"
+              checked={areParamSlidersEnabled}
+              onChange={(event) => setAreParamSlidersEnabled(event.target.checked)}
+              disabled={isRevealingSolution}
+              style={{ accentColor: COLORS.accent }}
+            />
+            <span style={{ fontSize: 11, color: COLORS.textBright, fontFamily: "'DM Mono', monospace" }}>
+              {areParamSlidersEnabled ? "enabled" : "disabled"}
+            </span>
+          </label>
+        </div>
+      )}
+
+      {!isInput && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>BIAS</div>
           {numberInput(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias, "b")}
@@ -348,8 +381,8 @@ export default function NeuronInspector({
             step={0.01}
             value={clamp(getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias), -5, 5)}
             onChange={(e) => updateParameterDraft(biasFieldKey(layerIdx, neuronIdx), e.target.value)}
-            disabled={isRevealingSolution}
-            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 1 }}
+            disabled={areBiasAndWeightSlidersDisabled}
+            style={{ width: "100%", accentColor: COLORS.accent, marginTop: 1, opacity: areBiasAndWeightSlidersDisabled ? 0.45 : 1 }}
           />
         </div>
       )}
@@ -371,12 +404,13 @@ export default function NeuronInspector({
                   step={0.01}
                   value={sliderValue}
                   onChange={(e) => updateParameterDraft(key, e.target.value)}
-                  disabled={isRevealingSolution}
+                  disabled={areBiasAndWeightSlidersDisabled}
                   style={{
                     width: "100%",
                     accentColor: sliderValue >= 0 ? COLORS.accent : COLORS.negative,
                     marginTop: -2,
                     marginBottom: 5,
+                    opacity: areBiasAndWeightSlidersDisabled ? 0.45 : 1,
                   }}
                 />
               </div>
