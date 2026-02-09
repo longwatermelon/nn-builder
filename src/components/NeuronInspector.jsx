@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   biasFieldKey,
+  buildNeuronEquationTex,
   clamp,
   getDefaultNeuronName,
   getNeuronCustomName,
@@ -13,9 +14,6 @@ import {
 } from "../lib/networkMath";
 import { COLORS } from "../styles/theme";
 import MathText from "./MathText";
-
-const ZERO_EPSILON = 1e-12;
-const UNIT_COEFFICIENT_EPSILON = 1e-9;
 
 function NeuronNameInput({
   inputRef,
@@ -191,37 +189,6 @@ export default function NeuronInspector({
 
   const getIncomingSourceTex = (weightIdx) => getNeuronTex(layers, layerIdx - 1, weightIdx);
 
-  const formatLatexNumber = (value) => {
-    if (!Number.isFinite(value)) return "0";
-    const normalized = Math.abs(value) < ZERO_EPSILON ? 0 : value;
-    const magnitude = Math.abs(normalized);
-    if (magnitude !== 0 && (magnitude >= 1000 || magnitude < 0.001)) {
-      const [mantissa, exponent] = normalized.toExponential(2).split("e");
-      return `${Number(mantissa)}\\,10^{${Number(exponent)}}`;
-    }
-    return String(Number(normalized.toFixed(3)));
-  };
-
-  const wrapActivationTex = (activationKey, affineTex) => {
-    switch (activationKey) {
-      case "relu":
-        return `\\operatorname{ReLU}\\left(${affineTex}\\right)`;
-      case "lrelu":
-        return `\\operatorname{LeakyReLU}\\left(${affineTex}\\right)`;
-      case "sigmoid":
-        return `\\sigma\\left(${affineTex}\\right)`;
-      case "tanh":
-        return `\\tanh\\left(${affineTex}\\right)`;
-      case "sin":
-        return `\\sin\\left(${affineTex}\\right)`;
-      case "cos":
-        return `\\cos\\left(${affineTex}\\right)`;
-      case "linear":
-      default:
-        return affineTex;
-    }
-  };
-
   const numberInput = (key, fallback, labelTex) => {
     const isInvalid = draftValidityByKey[key] === false;
     return (
@@ -261,42 +228,13 @@ export default function NeuronInspector({
   const neuronEquationTex = !isInput
     ? (() => {
         const neuron = layers[layerIdx].neurons[neuronIdx];
-        const weightedTerms = [];
-        for (let weightIdx = 0; weightIdx < neuron.weights.length; weightIdx++) {
-          const weight = neuron.weights[weightIdx];
-          const weightValue = getFieldNumericValue(weightFieldKey(layerIdx, neuronIdx, weightIdx), weight);
-          if (Math.abs(weightValue) <= ZERO_EPSILON) continue;
-          const sourceTex = getIncomingSourceTex(weightIdx);
-          const absWeight = Math.abs(weightValue);
-          const coefficientTex = Math.abs(absWeight - 1) < UNIT_COEFFICIENT_EPSILON ? "" : formatLatexNumber(absWeight);
-          const sourceNeedsGrouping = /[+\-*/=]/.test(sourceTex);
-          const sourceFactorTex = sourceNeedsGrouping ? `\\left(${sourceTex}\\right)` : sourceTex;
-          weightedTerms.push({
-            isNegative: weightValue < 0,
-            tex: `${coefficientTex}${sourceFactorTex}`,
-          });
-        }
-
-        const affineTerms = weightedTerms.map((term, idx) => {
-          if (idx === 0) return term.isNegative ? `-${term.tex}` : term.tex;
-          return `${term.isNegative ? "-" : "+"} ${term.tex}`;
-        });
-
+        const weights = neuron.weights.map((weight, weightIdx) =>
+          getFieldNumericValue(weightFieldKey(layerIdx, neuronIdx, weightIdx), weight)
+        );
+        const sourceTerms = neuron.weights.map((_, weightIdx) => getIncomingSourceTex(weightIdx));
         const biasValue = getFieldNumericValue(biasFieldKey(layerIdx, neuronIdx), neuron.bias);
-        if (Math.abs(biasValue) > ZERO_EPSILON) {
-          const biasTerm = formatLatexNumber(Math.abs(biasValue));
-          if (affineTerms.length === 0) {
-            affineTerms.push(biasValue < 0 ? `-${biasTerm}` : biasTerm);
-          } else {
-            affineTerms.push(`${biasValue < 0 ? "-" : "+"} ${biasTerm}`);
-          }
-        }
-
-        const hasAnyAffineTerm = affineTerms.length > 0;
-        const affineTex = hasAnyAffineTerm ? affineTerms.join(" ") : "0";
-        const activatedTex = wrapActivationTex(layers[layerIdx].activation, affineTex);
         const targetNeuronTex = getNeuronTex(layers, layerIdx, neuronIdx);
-        return `${targetNeuronTex} = ${activatedTex}`;
+        return buildNeuronEquationTex(targetNeuronTex, layers[layerIdx].activation, biasValue, weights, sourceTerms);
       })()
     : "";
 

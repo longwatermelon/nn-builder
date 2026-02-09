@@ -309,6 +309,152 @@ export function getNeuronTex(layers, layerIdx, neuronIdx) {
   return getDefaultNeuronName(layerIdx, neuronIdx, layerCount);
 }
 
+const EQUATION_ZERO_EPSILON = 1e-12;
+const EQUATION_UNIT_COEFFICIENT_EPSILON = 1e-9;
+const EQUATION_SOURCE_GROUPING_PATTERN = /[+\-*/=]/;
+const EQUATION_NUMERIC_LEADING_PATTERN = /^[0-9.]/;
+const NETWORK_EQUATION_MAX_CHARS = 200_000;
+const NETWORK_EQUATION_TOO_LARGE_ERROR = "Network equation is too large to export.";
+
+function enforceEquationLengthLimit(text, maxChars) {
+  if (typeof maxChars !== "number") return text;
+  if (text.length > maxChars) throw new Error(NETWORK_EQUATION_TOO_LARGE_ERROR);
+  return text;
+}
+
+function joinEquationParts(parts, separator, maxChars) {
+  if (parts.length === 0) return "";
+  if (typeof maxChars !== "number") return parts.join(separator);
+
+  let totalLength = 0;
+  for (let idx = 0; idx < parts.length; idx++) {
+    totalLength += parts[idx].length;
+    if (idx > 0) totalLength += separator.length;
+    if (totalLength > maxChars) throw new Error(NETWORK_EQUATION_TOO_LARGE_ERROR);
+  }
+
+  return parts.join(separator);
+}
+
+function formatEquationLatexNumber(value) {
+  if (!Number.isFinite(value)) return "0";
+  const normalized = Math.abs(value) < EQUATION_ZERO_EPSILON ? 0 : value;
+  const magnitude = Math.abs(normalized);
+  if (magnitude !== 0 && (magnitude >= 1000 || magnitude < 0.001)) {
+    const [mantissa, exponent] = normalized.toExponential(2).split("e");
+    return `${Number(mantissa)}\\,10^{${Number(exponent)}}`;
+  }
+  return String(Number(normalized.toFixed(3)));
+}
+
+function wrapEquationActivationTex(activationKey, affineTex) {
+  switch (activationKey) {
+    case "relu":
+      return `\\operatorname{ReLU}\\left(${affineTex}\\right)`;
+    case "lrelu":
+      return `\\operatorname{LeakyReLU}\\left(${affineTex}\\right)`;
+    case "sigmoid":
+      return `\\sigma\\left(${affineTex}\\right)`;
+    case "tanh":
+      return `\\tanh\\left(${affineTex}\\right)`;
+    case "sin":
+      return `\\sin\\left(${affineTex}\\right)`;
+    case "cos":
+      return `\\cos\\left(${affineTex}\\right)`;
+    case "linear":
+    default:
+      return affineTex;
+  }
+}
+
+export function buildNeuronActivationTex(activationKey, bias, weights, sourceTerms, maxChars = null) {
+  const safeWeights = Array.isArray(weights) ? weights : [];
+  const safeSourceTerms = Array.isArray(sourceTerms) ? sourceTerms : [];
+  const weightedTerms = [];
+
+  for (let weightIdx = 0; weightIdx < safeWeights.length; weightIdx++) {
+    const rawWeight = safeWeights[weightIdx];
+    const weightValue = Number.isFinite(rawWeight) ? rawWeight : 0;
+    if (Math.abs(weightValue) <= EQUATION_ZERO_EPSILON) continue;
+
+    const rawSourceTex = safeSourceTerms[weightIdx];
+    const sourceTex = typeof rawSourceTex === "string" && rawSourceTex.length > 0 ? rawSourceTex : "0";
+    const absWeight = Math.abs(weightValue);
+    const coefficientTex =
+      Math.abs(absWeight - 1) < EQUATION_UNIT_COEFFICIENT_EPSILON ? "" : formatEquationLatexNumber(absWeight);
+    const sourceNeedsGrouping =
+      EQUATION_SOURCE_GROUPING_PATTERN.test(sourceTex)
+      || (coefficientTex.length > 0 && EQUATION_NUMERIC_LEADING_PATTERN.test(sourceTex));
+    const sourceFactorTex = sourceNeedsGrouping ? `\\left(${sourceTex}\\right)` : sourceTex;
+    const termTex = enforceEquationLengthLimit(`${coefficientTex}${sourceFactorTex}`, maxChars);
+    weightedTerms.push({
+      isNegative: weightValue < 0,
+      tex: termTex,
+    });
+  }
+
+  const affineTerms = weightedTerms.map((term, idx) => {
+    if (idx === 0) return term.isNegative ? `-${term.tex}` : term.tex;
+    return `${term.isNegative ? "-" : "+"} ${term.tex}`;
+  });
+
+  const biasValue = Number.isFinite(bias) ? bias : 0;
+  if (Math.abs(biasValue) > EQUATION_ZERO_EPSILON) {
+    const biasTerm = formatEquationLatexNumber(Math.abs(biasValue));
+    if (affineTerms.length === 0) {
+      affineTerms.push(biasValue < 0 ? `-${biasTerm}` : biasTerm);
+    } else {
+      affineTerms.push(`${biasValue < 0 ? "-" : "+"} ${biasTerm}`);
+    }
+  }
+
+  const affineTex = affineTerms.length > 0 ? joinEquationParts(affineTerms, " ", maxChars) : "0";
+  return enforceEquationLengthLimit(wrapEquationActivationTex(activationKey, affineTex), maxChars);
+}
+
+export function buildNeuronEquationTex(targetTex, activationKey, bias, weights, sourceTerms, maxChars = null) {
+  return enforceEquationLengthLimit(
+    `${targetTex} = ${buildNeuronActivationTex(activationKey, bias, weights, sourceTerms, maxChars)}`,
+    maxChars
+  );
+}
+
+export function buildNetworkEquationTex(layers, maxChars = NETWORK_EQUATION_MAX_CHARS) {
+  if (!Array.isArray(layers) || layers.length < 2) return "";
+  const outputLayerIdx = layers.length - 1;
+  const outputLayer = layers[outputLayerIdx];
+  if (!outputLayer?.neurons?.[0]) return "";
+
+  const expressionCache = layers.map((layer, layerIdx) => {
+    if (layerIdx === 0) {
+      const inputCount = layer?.neuronCount ?? DEFAULT_INPUT_VALUES.length;
+      return Array.from({ length: inputCount }, (_, neuronIdx) => getNeuronTex(layers, 0, neuronIdx));
+    }
+    const neuronCount = Array.isArray(layer?.neurons) ? layer.neurons.length : 0;
+    return Array.from({ length: neuronCount }, () => null);
+  });
+
+  const buildNeuronExpressionTex = (layerIdx, neuronIdx) => {
+    if (layerIdx <= 0) return enforceEquationLengthLimit(getNeuronTex(layers, 0, neuronIdx), maxChars);
+
+    const cachedTex = expressionCache[layerIdx]?.[neuronIdx];
+    if (cachedTex !== null && cachedTex !== undefined) return cachedTex;
+
+    const layer = layers[layerIdx];
+    const neuron = layer?.neurons?.[neuronIdx];
+    if (!layer || !neuron) return "0";
+
+    const sourceTerms = neuron.weights.map((_, weightIdx) => buildNeuronExpressionTex(layerIdx - 1, weightIdx));
+    const expressionTex = buildNeuronActivationTex(layer.activation, neuron.bias, neuron.weights, sourceTerms, maxChars);
+    if (expressionCache[layerIdx]) expressionCache[layerIdx][neuronIdx] = expressionTex;
+    return expressionTex;
+  };
+
+  const outputTex = enforceEquationLengthLimit(getNeuronTex(layers, outputLayerIdx, 0), maxChars);
+  const outputExpressionTex = buildNeuronExpressionTex(outputLayerIdx, 0);
+  return enforceEquationLengthLimit(`${outputTex} = ${outputExpressionTex}`, maxChars);
+}
+
 export function fmt(v) {
   if (v === undefined || v === null || isNaN(v)) return "0.00";
   if (Math.abs(v) < 0.005) return "0.00";

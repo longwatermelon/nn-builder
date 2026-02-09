@@ -12,6 +12,7 @@ import {
   PARAM_SLIDERS_STORAGE_KEY,
   REVEAL_DURATION_MS,
   SOLVED_STORAGE_KEY,
+  buildNetworkEquationTex,
   buildParameterDrafts,
   clamp,
   cloneLayers,
@@ -682,6 +683,32 @@ export default function App() {
     }
   };
 
+  const handleExportEquationCopy = async () => {
+    let equationTex = "";
+    try {
+      equationTex = buildNetworkEquationTex(layersRef.current);
+    } catch (error) {
+      if (error instanceof Error && error.message) {
+        window.alert(`Export failed: ${error.message}`);
+      } else {
+        window.alert("Export failed: unable to build equation.");
+      }
+      return;
+    }
+
+    if (!equationTex) {
+      window.alert("Export failed: unable to build equation.");
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(equationTex, { fallbackOnClipboardWriteFailure: false });
+      window.alert("Network equation LaTeX copied to clipboard.");
+    } catch {
+      window.alert("Export failed: unable to copy equation to clipboard.");
+    }
+  };
+
   const handleImportFromFile = () => {
     setIsImportMenuOpen(false);
     importFileInputRef.current?.click();
@@ -852,7 +879,7 @@ export default function App() {
               }}
               style={btnStyle}
             >
-              Import JSON ▾
+              Import ▾
             </button>
             {isImportMenuOpen && (
               <div style={menuStyle}>
@@ -873,7 +900,7 @@ export default function App() {
               }}
               style={btnStyle}
             >
-              Export JSON ▾
+              Export ▾
             </button>
             {isExportMenuOpen && (
               <div style={menuStyle}>
@@ -884,7 +911,16 @@ export default function App() {
                   }}
                   style={btnStyle}
                 >
-                  Copy
+                  Copy JSON
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleExportEquationCopy();
+                    setIsExportMenuOpen(false);
+                  }}
+                  style={btnStyle}
+                >
+                  Copy Equation
                 </button>
                 <button
                   onClick={() => {
@@ -995,7 +1031,7 @@ export default function App() {
               gap: 10,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textBright }}>Import JSON from text</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.textBright }}>Import from text</div>
             <div style={{ fontSize: 12, color: COLORS.textMuted }}>
               Paste a network JSON payload, validate it, then confirm import.
             </div>
