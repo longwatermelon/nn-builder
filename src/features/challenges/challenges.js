@@ -31,47 +31,210 @@ function createSingleHiddenSolution({
   ];
 }
 
-// factorized relu construction that approximates x1 * x2
-function createInterpretableReluProductSolution() {
-  const thresholds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const hingeCoefficients = thresholds.map((threshold) => (threshold === 0 ? 1 : 2));
-  const projectionSigns = [1, -1, -1];
+const SCALAR_MUL_PRODUCT_SOLUTION_LAYERS = [
+  {
+    type: "input",
+    activation: "linear",
+    neuronCount: 2,
+  },
+  {
+    type: "hidden",
+    activation: "relu",
+    neurons: [
+      {
+        bias: 0,
+        weights: [1, 1],
+        name: "relu(s)",
+      },
+      {
+        bias: 0,
+        weights: [1, 0],
+        name: "relu(x)",
+      },
+      {
+        bias: 0,
+        weights: [0, 1],
+        name: "relu(y)",
+      },
+      {
+        bias: 0,
+        weights: [-1, -1],
+        name: "relu(-s)",
+      },
+      {
+        bias: 0,
+        weights: [-1, 0],
+        name: "relu(-x)",
+      },
+      {
+        bias: 0,
+        weights: [0, -1],
+        name: "relu(-y)",
+      },
+    ],
+  },
+  {
+    type: "hidden",
+    activation: "linear",
+    neurons: [
+      {
+        bias: 0,
+        weights: [1, 0, 0, 1, 0, 0],
+        name: "|s|",
+      },
+      {
+        bias: 0,
+        weights: [0, 1, 0, 0, 1, 0],
+        name: "|x|",
+      },
+      {
+        bias: 0,
+        weights: [0, 0, 1, 0, 0, 1],
+        name: "|y|",
+      },
+    ],
+  },
+  {
+    type: "hidden",
+    activation: "relu",
+    neurons: [
+      {
+        bias: 0,
+        weights: [1, 0, 0],
+        name: "f(|s|)",
+      },
+      {
+        bias: -1,
+        weights: [1, 0, 0],
+        name: "f(|s|-1)",
+      },
+      {
+        bias: -5,
+        weights: [5, 0, 0],
+        name: "g(|s|-1)",
+      },
+      {
+        bias: -25,
+        weights: [5, 0, 0],
+        name: "g(|s|-5)",
+      },
+      {
+        bias: -70,
+        weights: [14, 0, 0],
+        name: "h(|s|-5)",
+      },
+      {
+        bias: 0,
+        weights: [0, 1, 0],
+        name: "f(|x|)",
+      },
+      {
+        bias: -1,
+        weights: [0, 1, 0],
+        name: "f(|x|-1)",
+      },
+      {
+        bias: -5,
+        weights: [0, 5, 0],
+        name: "g(|x|-1)",
+      },
+      {
+        bias: -25,
+        weights: [0, 5, 0],
+        name: "g(|x|-5)",
+      },
+      {
+        bias: -70,
+        weights: [0, 14, 0],
+        name: "h(|x|-5)",
+      },
+      {
+        bias: 0,
+        weights: [0, 0, 1],
+        name: "f(|y|)",
+      },
+      {
+        bias: -1,
+        weights: [0, 0, 1],
+        name: "f(|y|-1)",
+      },
+      {
+        bias: -5,
+        weights: [0, 0, 5],
+        name: "g(|y|-1)",
+      },
+      {
+        bias: -25,
+        weights: [0, 0, 5],
+        name: "g(|y|-5)",
+      },
+      {
+        bias: -70,
+        weights: [0, 0, 14],
+        name: "h(|y|-5)",
+      },
+    ],
+  },
+  {
+    type: "hidden",
+    activation: "linear",
+    neurons: [
+      {
+        bias: 0,
+        weights: [1, -1, 1, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        name: "p(|s|)",
+      },
+      {
+        bias: 0,
+        weights: [0, 0, 0, 0, 0, 1, -1, 1, -1, 1, 0, 0, 0, 0, 0],
+        name: "p(|x|)",
+      },
+      {
+        bias: 0,
+        weights: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, -1, 1],
+        name: "p(|y|)",
+      },
+    ],
+  },
+  {
+    type: "output",
+    activation: "linear",
+    neurons: [
+      {
+        bias: 0,
+        weights: [0.5, -0.5, -0.5],
+      },
+    ],
+  },
+];
 
-  const layer1Neurons = [
-    { bias: 0, weights: [1, 1] },
-    { bias: 0, weights: [-1, -1] },
-    { bias: 0, weights: [1, 0] },
-    { bias: 0, weights: [-1, 0] },
-    { bias: 0, weights: [0, 1] },
-    { bias: 0, weights: [0, -1] },
-  ];
-
-  const layer2Neurons = [
-    { bias: 0, weights: [1, 1, 0, 0, 0, 0] },
-    { bias: 0, weights: [0, 0, 1, 1, 0, 0] },
-    { bias: 0, weights: [0, 0, 0, 0, 1, 1] },
-  ];
-
-  const layer3Neurons = [];
-  const outputWeights = [];
-
-  for (let sourceIdx = 0; sourceIdx < projectionSigns.length; sourceIdx++) {
-    for (let i = 0; i < thresholds.length; i++) {
-      const threshold = thresholds[i];
-      const weights = [0, 0, 0];
-      weights[sourceIdx] = 1;
-      layer3Neurons.push({ bias: -threshold, weights });
-      outputWeights.push(0.5 * projectionSigns[sourceIdx] * hingeCoefficients[i]);
+function createScalarMulProductSolution() {
+  return SCALAR_MUL_PRODUCT_SOLUTION_LAYERS.map((layer) => {
+    if (layer.type === "input") {
+      return {
+        type: layer.type,
+        activation: layer.activation,
+        neuronCount: layer.neuronCount,
+      };
     }
-  }
 
-  return [
-    { type: "input", activation: "linear", neuronCount: 2 },
-    { type: "hidden", activation: "relu", neurons: layer1Neurons },
-    { type: "hidden", activation: "linear", neurons: layer2Neurons },
-    { type: "hidden", activation: "relu", neurons: layer3Neurons },
-    { type: "output", activation: "linear", neurons: [{ bias: 0, weights: outputWeights }] },
-  ];
+    return {
+      type: layer.type,
+      activation: layer.activation,
+      neurons: layer.neurons.map((neuron) => {
+        const clonedNeuron = {
+          bias: neuron.bias,
+          weights: [...neuron.weights],
+        };
+
+        if (typeof neuron.name === "string") {
+          clonedNeuron.name = neuron.name;
+        }
+
+        return clonedNeuron;
+      }),
+    };
+  });
 }
 
 export const CHALLENGE_DEFS = [
@@ -250,7 +413,7 @@ export const CHALLENGE_DEFS = [
     difficulty: "insane",
     hint: "Build |x+y|, |x|, |y|, then approximate squares with ReLU hinges.",
     targetFn: (x1, x2) => x1 * x2,
-    solutionFactory: () => createInterpretableReluProductSolution(),
+    solutionFactory: () => createScalarMulProductSolution(),
   },
   {
     id: "sine_wave",
