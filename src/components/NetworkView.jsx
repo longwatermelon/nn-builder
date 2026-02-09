@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ACT_FNS, fmt, getNeuronName, neuronColor } from "../lib/networkMath";
+import { ACT_FNS, fmt, getNeuronTex, neuronColor } from "../lib/networkMath";
 import NeuronInspector from "./NeuronInspector";
+import MathText from "./MathText";
 import { COLORS } from "../styles/theme";
 
 const SVG_W = 560;
@@ -11,10 +12,11 @@ const SELECTED_NEURON_RADIUS_BOOST = 3;
 const MAX_NEURON_R = NEURON_R + SELECTED_NEURON_RADIUS_BOOST;
 const NEURON_NAME_FONT_SIZE = 9;
 const NEURON_NAME_GAP = 6;
-const NEURON_NAME_ASCENT = Math.ceil(NEURON_NAME_FONT_SIZE * 0.9);
+const NEURON_NAME_LABEL_HEIGHT = 16;
 const NEURON_NAME_OFFSET = NEURON_R + NEURON_NAME_GAP;
 const NEURON_NAME_SAFE_MARGIN = 6;
-const NEURON_TOP_BUFFER = NEURON_NAME_OFFSET + NEURON_NAME_ASCENT + NEURON_NAME_SAFE_MARGIN + SELECTED_NEURON_RADIUS_BOOST;
+const NEURON_TOP_BUFFER =
+  NEURON_NAME_OFFSET + NEURON_NAME_LABEL_HEIGHT + NEURON_NAME_SAFE_MARGIN + SELECTED_NEURON_RADIUS_BOOST;
 const LAYER_CONTROL_BOTTOM = 8;
 const LAYER_CONTROL_HEIGHT = 86;
 const LAYER_CONTROL_NEURON_GAP = 12;
@@ -339,23 +341,31 @@ export default function NetworkView({
                       >
                         {fmt(actVal)}
                       </text>
-                      <text
-                        x={pos.x}
-                        y={pos.y - NEURON_NAME_OFFSET}
-                        textAnchor="middle"
-                        fill={COLORS.textMuted}
-                        fontSize={NEURON_NAME_FONT_SIZE}
-                        fontFamily="'Sora', sans-serif"
-                        fontWeight="500"
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {getNeuronName(layers, li, ni)}
-                      </text>
                     </g>
                   );
                 })
               )}
             </svg>
+
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+              {neuronPositions.map((layerPositions, li) =>
+                layerPositions.map((pos, ni) => (
+                  <div
+                    key={`neuron-name-${li}-${ni}`}
+                    style={{
+                      position: "absolute",
+                      left: pos.x,
+                      top: pos.y - NEURON_NAME_OFFSET,
+                      transform: "translate(-50%, -100%)",
+                      whiteSpace: "nowrap",
+                      lineHeight: 1,
+                    }}
+                  >
+                    <MathText tex={getNeuronTex(layers, li, ni)} style={{ fontSize: NEURON_NAME_FONT_SIZE, color: COLORS.textMuted }} />
+                  </div>
+                ))
+              )}
+            </div>
 
             {showLayerCards && (
               <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>

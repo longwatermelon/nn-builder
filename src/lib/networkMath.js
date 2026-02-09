@@ -21,24 +21,228 @@ export const NETWORK_IMPORT_LIMITS = Object.freeze({
 });
 
 const REAL_NUMBER_PATTERN = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
-const SUBSCRIPT_DIGITS = Object.freeze({
-  "0": "₀",
-  "1": "₁",
-  "2": "₂",
-  "3": "₃",
-  "4": "₄",
-  "5": "₅",
-  "6": "₆",
-  "7": "₇",
-  "8": "₈",
-  "9": "₉",
+const LATEX_TEXT_ESCAPE_PATTERN = /[\\{}$&#_%^~]/g;
+const SIMPLE_NEURON_TEX_COMMAND_TOKEN_PATTERN = /^[A-Za-z]$/;
+const SIMPLE_NEURON_TEX_SCRIPT_TOKEN_PATTERN = /^[A-Za-z0-9]$/;
+const SIMPLE_NEURON_TEX_SEGMENT_BREAK_CHARS = new Set(["+", "-", "*", "/", "=", ",", "(", ")"]);
+const SIMPLE_NEURON_TEX_INVALID_BASE_CHARS = new Set(["_", "^", "{", "+", "-", "*", "/", "=", ",", "("]);
+const SIMPLE_NEURON_TEX_SAFE_COMMANDS = new Set([
+  "alpha",
+  "beta",
+  "gamma",
+  "delta",
+  "epsilon",
+  "varepsilon",
+  "zeta",
+  "eta",
+  "theta",
+  "vartheta",
+  "iota",
+  "kappa",
+  "lambda",
+  "mu",
+  "nu",
+  "xi",
+  "pi",
+  "varpi",
+  "rho",
+  "varrho",
+  "sigma",
+  "varsigma",
+  "tau",
+  "upsilon",
+  "phi",
+  "varphi",
+  "chi",
+  "psi",
+  "omega",
+  "Gamma",
+  "Delta",
+  "Theta",
+  "Lambda",
+  "Xi",
+  "Pi",
+  "Sigma",
+  "Upsilon",
+  "Phi",
+  "Psi",
+  "Omega",
+]);
+const LATEX_TEXT_ESCAPE_MAP = Object.freeze({
+  "\\": "\\textbackslash{}",
+  "{": "\\{",
+  "}": "\\}",
+  "$": "\\$",
+  "&": "\\&",
+  "#": "\\#",
+  "_": "\\_",
+  "%": "\\%",
+  "^": "\\^{}",
+  "~": "\\~{}",
 });
 
-function toSubscriptNumber(value) {
-  return String(value)
-    .split("")
-    .map((char) => SUBSCRIPT_DIGITS[char] ?? char)
-    .join("");
+function escapeLatexText(text) {
+  return text.replace(LATEX_TEXT_ESCAPE_PATTERN, (char) => LATEX_TEXT_ESCAPE_MAP[char] ?? char);
+}
+
+function hasBalancedBraces(text) {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char !== "}") continue;
+    depth -= 1;
+    if (depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+function hasOnlySimpleNeuronTexChars(text) {
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const codePoint = char.codePointAt(0);
+    const isAsciiLetter = (char >= "a" && char <= "z") || (char >= "A" && char <= "Z");
+    const isDigit = char >= "0" && char <= "9";
+    if (typeof codePoint === "number" && codePoint > 0x7f) continue;
+    if (isAsciiLetter || isDigit) continue;
+    if (char === "_") continue;
+    if (char === "^") continue;
+    if (char === "{") continue;
+    if (char === "}") continue;
+    if (char === ",") continue;
+    if (char === "(") continue;
+    if (char === ")") continue;
+    if (char === "+") continue;
+    if (char === "-") continue;
+    if (char === "*") continue;
+    if (char === "/") continue;
+    if (char === ".") continue;
+    if (char === "=") continue;
+    if (char === "'") continue;
+    if (char === "\\") continue;
+    if (char === " ") continue;
+    return false;
+  }
+  return true;
+}
+
+function isSimpleNeuronScriptToken(char) {
+  const codePoint = char.codePointAt(0);
+  if (typeof codePoint === "number" && codePoint > 0x7f) return true;
+  return SIMPLE_NEURON_TEX_SCRIPT_TOKEN_PATTERN.test(char);
+}
+
+function readSimpleNeuronTexCommand(text, startIdx) {
+  let commandIdx = startIdx + 1;
+  while (commandIdx < text.length && SIMPLE_NEURON_TEX_COMMAND_TOKEN_PATTERN.test(text[commandIdx])) {
+    commandIdx += 1;
+  }
+  if (commandIdx === startIdx + 1) return null;
+  return {
+    name: text.slice(startIdx + 1, commandIdx),
+    nextIdx: commandIdx,
+  };
+}
+
+function isSimpleNeuronTex(text) {
+  if (!text || !hasOnlySimpleNeuronTexChars(text)) return false;
+  if (!hasBalancedBraces(text)) return false;
+
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "\\") continue;
+    const command = readSimpleNeuronTexCommand(text, i);
+    if (!command) return false;
+    if (!SIMPLE_NEURON_TEX_SAFE_COMMANDS.has(command.name)) return false;
+    i = command.nextIdx - 1;
+  }
+
+  let groupDepth = 0;
+  let seenSubInSegment = false;
+  let seenSupInSegment = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === "{") {
+      groupDepth += 1;
+      continue;
+    }
+    if (char === "}") {
+      groupDepth -= 1;
+      continue;
+    }
+    if (groupDepth > 0) continue;
+    if (char === " " || SIMPLE_NEURON_TEX_SEGMENT_BREAK_CHARS.has(char)) {
+      seenSubInSegment = false;
+      seenSupInSegment = false;
+      continue;
+    }
+    if (char === "_") {
+      if (seenSubInSegment) return false;
+      seenSubInSegment = true;
+      continue;
+    }
+    if (char === "^") {
+      if (seenSupInSegment) return false;
+      seenSupInSegment = true;
+      continue;
+    }
+  }
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char !== "_" && char !== "^") continue;
+
+    let prevIdx = i - 1;
+    while (prevIdx >= 0 && text[prevIdx] === " ") prevIdx -= 1;
+    if (prevIdx < 0) return false;
+    if (SIMPLE_NEURON_TEX_INVALID_BASE_CHARS.has(text[prevIdx])) return false;
+
+    let nextIdx = i + 1;
+    while (nextIdx < text.length && text[nextIdx] === " ") nextIdx += 1;
+    if (nextIdx >= text.length) return false;
+
+    const nextChar = text[nextIdx];
+    if (nextChar === "{") {
+      let depth = 1;
+      let contentLength = 0;
+      nextIdx += 1;
+      while (nextIdx < text.length && depth > 0) {
+        const groupChar = text[nextIdx];
+        if (groupChar === "{") {
+          depth += 1;
+        } else if (groupChar === "}") {
+          depth -= 1;
+          if (depth === 0) break;
+        }
+        if (depth > 0) contentLength += 1;
+        nextIdx += 1;
+      }
+      if (depth !== 0 || contentLength === 0) return false;
+      i = nextIdx;
+      continue;
+    }
+
+    if (nextChar === "\\") {
+      const command = readSimpleNeuronTexCommand(text, nextIdx);
+      if (!command) return false;
+      if (!SIMPLE_NEURON_TEX_SAFE_COMMANDS.has(command.name)) return false;
+      i = command.nextIdx - 1;
+      continue;
+    }
+
+    if (!isSimpleNeuronScriptToken(nextChar)) return false;
+    i = nextIdx;
+  }
+
+  return true;
+}
+
+function normalizeNeuronTex(text) {
+  const hasSubOrSup = text.includes("_") || text.includes("^");
+  if (hasSubOrSup && isSimpleNeuronTex(text)) return text;
+  return `\\text{${escapeLatexText(text)}}`;
 }
 
 export function normalizeNeuronName(rawName) {
@@ -78,9 +282,9 @@ function sanitizeInputNeuronNames(rawNames) {
 }
 
 export function getDefaultNeuronName(layerIdx, neuronIdx, layerCount) {
-  if (layerIdx === 0) return `x${toSubscriptNumber(neuronIdx + 1)}`;
-  if (layerIdx === layerCount - 1) return "out";
-  return `h${layerIdx}.${neuronIdx + 1}`;
+  if (layerIdx === 0) return `x_${neuronIdx + 1}`;
+  if (layerIdx === layerCount - 1) return "f(x_1, x_2)";
+  return `h_{${layerIdx},${neuronIdx + 1}}`;
 }
 
 export function getNeuronCustomName(layers, layerIdx, neuronIdx) {
@@ -93,6 +297,13 @@ export function getNeuronCustomName(layers, layerIdx, neuronIdx) {
 export function getNeuronName(layers, layerIdx, neuronIdx) {
   const customName = getNeuronCustomName(layers, layerIdx, neuronIdx);
   if (customName) return customName;
+  const layerCount = Array.isArray(layers) && layers.length > 0 ? layers.length : layerIdx + 1;
+  return getDefaultNeuronName(layerIdx, neuronIdx, layerCount);
+}
+
+export function getNeuronTex(layers, layerIdx, neuronIdx) {
+  const customName = getNeuronCustomName(layers, layerIdx, neuronIdx);
+  if (customName) return normalizeNeuronTex(customName);
   const layerCount = Array.isArray(layers) && layers.length > 0 ? layers.length : layerIdx + 1;
   return getDefaultNeuronName(layerIdx, neuronIdx, layerCount);
 }

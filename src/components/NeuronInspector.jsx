@@ -4,7 +4,7 @@ import {
   clamp,
   getDefaultNeuronName,
   getNeuronCustomName,
-  getNeuronName,
+  getNeuronTex,
   inputFieldKey,
   numberToDraftText,
   parseRealNumber,
@@ -15,29 +15,6 @@ import MathText from "./MathText";
 
 const ZERO_EPSILON = 1e-12;
 const UNIT_COEFFICIENT_EPSILON = 1e-9;
-const LATEX_TEXT_ESCAPE_PATTERN = /[\\{}$&#_%^~]/g;
-const LATEX_TEXT_ESCAPE_MAP = Object.freeze({
-  "\\": "\\textbackslash{}",
-  "{": "\\{",
-  "}": "\\}",
-  "$": "\\$",
-  "&": "\\&",
-  "#": "\\#",
-  "_": "\\_",
-  "%": "\\%",
-  "^": "\\^{}",
-  "~": "\\~{}",
-});
-
-function escapeLatexText(text) {
-  return text.replace(LATEX_TEXT_ESCAPE_PATTERN, (char) => LATEX_TEXT_ESCAPE_MAP[char] ?? char);
-}
-
-function getDefaultNeuronTex(layerIdx, neuronIdx, layerCount) {
-  if (layerIdx === 0) return `x_{${neuronIdx + 1}}`;
-  if (layerIdx === layerCount - 1) return "\\mathrm{out}";
-  return `h_{${layerIdx},${neuronIdx + 1}}`;
-}
 
 export default function NeuronInspector({
   sel,
@@ -64,7 +41,7 @@ export default function NeuronInspector({
   const layerLabel = layerIdx === 0 ? "Input" : layerIdx === layers.length - 1 ? "Output" : `Hidden ${layerIdx}`;
   const defaultNeuronLabel = getDefaultNeuronName(layerIdx, neuronIdx, layers.length);
   const customNeuronName = getNeuronCustomName(layers, layerIdx, neuronIdx);
-  const neuronLabel = getNeuronName(layers, layerIdx, neuronIdx);
+  const neuronTex = getNeuronTex(layers, layerIdx, neuronIdx);
   const nameInputRef = useRef(null);
   const shouldFocusNameFieldRef = useRef(false);
   const hiddenIncomingWeightIndexSet = useMemo(
@@ -120,8 +97,6 @@ export default function NeuronInspector({
     requestAnimationFrame(() => target.select());
   };
 
-  const getIncomingSourceLabel = (weightIdx) => getNeuronName(layers, layerIdx - 1, weightIdx);
-
   const commitNameValue = (nextValue) => {
     if (nextValue === customNeuronName) return;
     setNeuronName(layerIdx, neuronIdx, nextValue);
@@ -139,13 +114,7 @@ export default function NeuronInspector({
     setSel({ layerIdx, neuronIdx: nextNeuronIdx });
   };
 
-  const getNeuronTex = (targetLayerIdx, targetNeuronIdx) => {
-    const customName = getNeuronCustomName(layers, targetLayerIdx, targetNeuronIdx);
-    if (customName) return `\\text{${escapeLatexText(customName)}}`;
-    return getDefaultNeuronTex(targetLayerIdx, targetNeuronIdx, layers.length);
-  };
-
-  const getIncomingSourceTex = (weightIdx) => getNeuronTex(layerIdx - 1, weightIdx);
+  const getIncomingSourceTex = (weightIdx) => getNeuronTex(layers, layerIdx - 1, weightIdx);
 
   const formatLatexNumber = (value) => {
     if (!Number.isFinite(value)) return "0";
@@ -178,11 +147,13 @@ export default function NeuronInspector({
     }
   };
 
-  const numberInput = (key, fallback, label) => {
+  const numberInput = (key, fallback, labelTex) => {
     const isInvalid = draftValidityByKey[key] === false;
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 52, fontFamily: "'DM Mono', monospace" }}>{label}</span>
+        <div style={{ minWidth: 52, display: "flex", alignItems: "center" }}>
+          <MathText tex={labelTex} style={{ fontSize: 11, color: COLORS.textMuted }} />
+        </div>
         <input
           type="text"
           inputMode="decimal"
@@ -223,9 +194,11 @@ export default function NeuronInspector({
           const sourceTex = getIncomingSourceTex(weightIdx);
           const absWeight = Math.abs(weightValue);
           const coefficientTex = Math.abs(absWeight - 1) < UNIT_COEFFICIENT_EPSILON ? "" : formatLatexNumber(absWeight);
+          const sourceNeedsGrouping = /[+\-*/=]/.test(sourceTex);
+          const sourceFactorTex = sourceNeedsGrouping ? `\\left(${sourceTex}\\right)` : sourceTex;
           weightedTerms.push({
             isNegative: weightValue < 0,
-            tex: `${coefficientTex}${sourceTex}`,
+            tex: `${coefficientTex}${sourceFactorTex}`,
           });
         }
 
@@ -247,8 +220,8 @@ export default function NeuronInspector({
         const hasAnyAffineTerm = affineTerms.length > 0;
         const affineTex = hasAnyAffineTerm ? affineTerms.join(" ") : "0";
         const activatedTex = wrapActivationTex(layers[layerIdx].activation, affineTex);
-        const neuronTex = getNeuronTex(layerIdx, neuronIdx);
-        return `${neuronTex} = ${activatedTex}`;
+        const targetNeuronTex = getNeuronTex(layers, layerIdx, neuronIdx);
+        return `${targetNeuronTex} = ${activatedTex}`;
       })()
     : "";
 
@@ -265,7 +238,10 @@ export default function NeuronInspector({
           <div style={{ fontSize: 10, color: COLORS.accent, fontWeight: 600, letterSpacing: 1.1, textTransform: "uppercase" }}>
             {layerLabel} layer
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.textBright }}>Neuron {neuronLabel}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 700, color: COLORS.textBright }}>
+            <span>Neuron</span>
+            <MathText tex={neuronTex} style={{ fontSize: 14, color: COLORS.textBright }} />
+          </div>
         </div>
         {showClearSelectionButton && (
           <button
@@ -327,7 +303,7 @@ export default function NeuronInspector({
       {isInput && showInputValueSection && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INPUT VALUE</div>
-          {numberInput(inputFieldKey(neuronIdx), inputValues[neuronIdx], neuronLabel)}
+          {numberInput(inputFieldKey(neuronIdx), inputValues[neuronIdx], neuronTex)}
           {showParamSliders && (
             <input
               type="range"
@@ -382,12 +358,12 @@ export default function NeuronInspector({
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INCOMING WEIGHTS</div>
           {layers[layerIdx].neurons[neuronIdx].weights.map((w, wi) => {
             if (hiddenIncomingWeightIndexSet.has(wi)) return null;
-            const prevLabel = getIncomingSourceLabel(wi);
+            const sourceTex = getIncomingSourceTex(wi);
             const key = weightFieldKey(layerIdx, neuronIdx, wi);
             const sliderValue = clamp(getFieldNumericValue(key, w), -5, 5);
             return (
               <div key={wi}>
-                {numberInput(key, w, `w(${prevLabel})`)}
+                {numberInput(key, w, `w\\left(${sourceTex}\\right)`)}
                 {showParamSliders && (
                   <input
                     type="range"
