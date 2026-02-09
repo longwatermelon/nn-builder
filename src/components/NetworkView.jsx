@@ -147,10 +147,18 @@ export default function NetworkView({
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
   const [graphViewportWidth, setGraphViewportWidth] = useState(SVG_W);
+  const [nameFieldFocusRequest, setNameFieldFocusRequest] = useState(null);
 
   const dragStartY = useRef(0);
   const dragStartH = useRef(0);
   const graphPaneRef = useRef(null);
+  const nextNameFieldFocusRequestIdRef = useRef(1);
+
+  const requestNameFieldFocus = (layerIdx, neuronIdx) => {
+    const requestId = nextNameFieldFocusRequestIdRef.current;
+    nextNameFieldFocusRequestIdRef.current += 1;
+    setNameFieldFocusRequest({ requestId, layerIdx, neuronIdx });
+  };
 
   const layerConnectionCount = Math.max(1, layers.length - 1);
   const graphLayerGap = useMemo(() => {
@@ -327,6 +335,7 @@ export default function NetworkView({
                           setSel(null);
                           return;
                         }
+                        requestNameFieldFocus(li, ni);
                         setSel({ layerIdx: li, neuronIdx: ni });
                       }}
                       style={{ cursor: "pointer" }}
@@ -499,6 +508,7 @@ export default function NetworkView({
             showParamSliders={showParamSliders}
             updateParameterDraft={updateParameterDraft}
             setNeuronName={setNeuronName}
+            nameFieldFocusRequest={nameFieldFocusRequest}
             {...inspectorOptions}
           />
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   biasFieldKey,
   clamp,
@@ -111,6 +111,7 @@ export default function NeuronInspector({
   showWeightsSection = true,
   hiddenIncomingWeightIndexes = [],
   showClearSelectionButton = true,
+  nameFieldFocusRequest = null,
 }) {
   const layerIdx = sel?.layerIdx ?? 0;
   const neuronIdx = sel?.neuronIdx ?? 0;
@@ -120,19 +121,24 @@ export default function NeuronInspector({
   const customNeuronName = getNeuronCustomName(layers, layerIdx, neuronIdx);
   const neuronTex = getNeuronTex(layers, layerIdx, neuronIdx);
   const nameInputRef = useRef(null);
+  const handledFocusRequestIdRef = useRef(0);
   const hiddenIncomingWeightIndexSet = useMemo(
     () => new Set(Array.isArray(hiddenIncomingWeightIndexes) ? hiddenIncomingWeightIndexes : []),
     [hiddenIncomingWeightIndexes]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!sel) return;
+    if (!nameFieldFocusRequest || typeof nameFieldFocusRequest.requestId !== "number") return;
+    if (nameFieldFocusRequest.layerIdx !== layerIdx || nameFieldFocusRequest.neuronIdx !== neuronIdx) return;
+    if (nameFieldFocusRequest.requestId === handledFocusRequestIdRef.current) return;
+    handledFocusRequestIdRef.current = nameFieldFocusRequest.requestId;
     if (!showNameField || isRevealingSolution) return;
     const target = nameInputRef.current;
     if (!target) return;
     target.focus();
-    requestAnimationFrame(() => target.select());
-  }, [sel, showNameField, isRevealingSolution]);
+    target.select();
+  }, [sel, showNameField, isRevealingSolution, nameFieldFocusRequest, layerIdx, neuronIdx]);
 
   if (!sel) {
     return (
