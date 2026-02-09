@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   biasFieldKey,
   clamp,
@@ -6,6 +6,7 @@ import {
   getNeuronCustomName,
   getNeuronTex,
   inputFieldKey,
+  normalizeNeuronName,
   numberToDraftText,
   parseRealNumber,
   weightFieldKey,
@@ -15,6 +16,82 @@ import MathText from "./MathText";
 
 const ZERO_EPSILON = 1e-12;
 const UNIT_COEFFICIENT_EPSILON = 1e-9;
+
+function NeuronNameInput({
+  inputRef,
+  nameValue,
+  placeholder,
+  commitNameValue,
+  selectNextNeuronInLayer,
+  isRevealingSolution,
+}) {
+  const [nameDraft, setNameDraft] = useState(nameValue);
+  const [isEditing, setIsEditing] = useState(false);
+  const nameEditStartValueRef = useRef(nameValue);
+  const skipBlurCommitRef = useRef(false);
+  const displayValue = isEditing ? nameDraft : nameValue;
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={displayValue}
+      placeholder={placeholder}
+      onFocus={(event) => {
+        const currentValue = event.currentTarget.value;
+        nameEditStartValueRef.current = currentValue;
+        setNameDraft(currentValue);
+        setIsEditing(true);
+      }}
+      onChange={(event) => {
+        const nextValue = event.target.value;
+        setNameDraft(nextValue);
+        commitNameValue(nextValue);
+      }}
+      onBlur={(event) => {
+        if (skipBlurCommitRef.current) {
+          skipBlurCommitRef.current = false;
+          setIsEditing(false);
+          return;
+        }
+        const normalizedValue = normalizeNeuronName(event.target.value);
+        setNameDraft(normalizedValue);
+        commitNameValue(normalizedValue);
+        setIsEditing(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const normalizedValue = normalizeNeuronName(event.currentTarget.value);
+          setNameDraft(normalizedValue);
+          commitNameValue(normalizedValue);
+          selectNextNeuronInLayer();
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          skipBlurCommitRef.current = true;
+          const priorValue = nameEditStartValueRef.current;
+          setNameDraft(priorValue);
+          commitNameValue(priorValue);
+          setIsEditing(false);
+          event.currentTarget.blur();
+        }
+      }}
+      disabled={isRevealingSolution}
+      style={{
+        width: "100%",
+        background: "rgba(30,30,30,0.9)",
+        border: `1px solid ${COLORS.panelBorder}`,
+        borderRadius: 3,
+        padding: "5px 7px",
+        color: COLORS.textBright,
+        fontFamily: "'Sora', sans-serif",
+        fontSize: 12,
+        boxSizing: "border-box",
+      }}
+    />
+  );
+}
 
 export default function NeuronInspector({
   sel,
@@ -98,7 +175,6 @@ export default function NeuronInspector({
   };
 
   const commitNameValue = (nextValue) => {
-    if (nextValue === customNeuronName) return;
     setNeuronName(layerIdx, neuronIdx, nextValue);
   };
 
@@ -265,37 +341,14 @@ export default function NeuronInspector({
       {showNameField && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>NAME</div>
-          <input
-            ref={nameInputRef}
-            key={`name-input-${layerIdx}-${neuronIdx}-${customNeuronName}`}
-            type="text"
-            defaultValue={customNeuronName}
+          <NeuronNameInput
+            key={`name-input-${layerIdx}-${neuronIdx}`}
+            inputRef={nameInputRef}
+            nameValue={customNeuronName}
             placeholder={defaultNeuronLabel}
-            onBlur={(event) => commitNameValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commitNameValue(event.currentTarget.value);
-                selectNextNeuronInLayer();
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.currentTarget.value = customNeuronName;
-                event.currentTarget.blur();
-              }
-            }}
-            disabled={isRevealingSolution}
-            style={{
-              width: "100%",
-              background: "rgba(30,30,30,0.9)",
-              border: `1px solid ${COLORS.panelBorder}`,
-              borderRadius: 3,
-              padding: "5px 7px",
-              color: COLORS.textBright,
-              fontFamily: "'Sora', sans-serif",
-              fontSize: 12,
-              boxSizing: "border-box",
-            }}
+            commitNameValue={commitNameValue}
+            selectNextNeuronInLayer={selectNextNeuronInLayer}
+            isRevealingSolution={isRevealingSolution}
           />
         </div>
       )}
