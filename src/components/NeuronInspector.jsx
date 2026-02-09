@@ -3,6 +3,9 @@ import {
   biasFieldKey,
   clamp,
   fmt,
+  getDefaultNeuronName,
+  getNeuronCustomName,
+  getNeuronName,
   inputFieldKey,
   numberToDraftText,
   parseRealNumber,
@@ -13,6 +16,29 @@ import MathText from "./MathText";
 
 const ZERO_EPSILON = 1e-12;
 const UNIT_COEFFICIENT_EPSILON = 1e-9;
+const LATEX_TEXT_ESCAPE_PATTERN = /[\\{}$&#_%^~]/g;
+const LATEX_TEXT_ESCAPE_MAP = Object.freeze({
+  "\\": "\\textbackslash{}",
+  "{": "\\{",
+  "}": "\\}",
+  "$": "\\$",
+  "&": "\\&",
+  "#": "\\#",
+  "_": "\\_",
+  "%": "\\%",
+  "^": "\\^{}",
+  "~": "\\~{}",
+});
+
+function escapeLatexText(text) {
+  return text.replace(LATEX_TEXT_ESCAPE_PATTERN, (char) => LATEX_TEXT_ESCAPE_MAP[char] ?? char);
+}
+
+function getDefaultNeuronTex(layerIdx, neuronIdx, layerCount) {
+  if (layerIdx === 0) return `x_{${neuronIdx + 1}}`;
+  if (layerIdx === layerCount - 1) return "\\mathrm{out}";
+  return `h_{${layerIdx},${neuronIdx + 1}}`;
+}
 
 export default function NeuronInspector({
   sel,
@@ -25,7 +51,18 @@ export default function NeuronInspector({
   draftValidityByKey,
   isRevealingSolution,
   updateParameterDraft,
+  setNeuronName,
 }) {
+  const layerIdx = sel?.layerIdx ?? 0;
+  const neuronIdx = sel?.neuronIdx ?? 0;
+  const isInput = layerIdx === 0;
+  const layerLabel = layerIdx === 0 ? "Input" : layerIdx === layers.length - 1 ? "Output" : `Hidden ${layerIdx}`;
+  const defaultNeuronLabel = getDefaultNeuronName(layerIdx, neuronIdx, layers.length);
+  const customNeuronName = getNeuronCustomName(layers, layerIdx, neuronIdx);
+  const neuronLabel = getNeuronName(layers, layerIdx, neuronIdx);
+  const act = activations[layerIdx]?.[neuronIdx];
+  const pre = preActivations[layerIdx]?.[neuronIdx];
+
   if (!sel) {
     return (
       <div
@@ -49,13 +86,6 @@ export default function NeuronInspector({
     );
   }
 
-  const { layerIdx, neuronIdx } = sel;
-  const isInput = layerIdx === 0;
-  const layerLabel = layerIdx === 0 ? "Input" : layerIdx === layers.length - 1 ? "Output" : `Hidden ${layerIdx}`;
-  const neuronLabel = isInput ? (neuronIdx === 0 ? "x₁" : "x₂") : `n${neuronIdx + 1}`;
-  const act = activations[layerIdx]?.[neuronIdx];
-  const pre = preActivations[layerIdx]?.[neuronIdx];
-
   const getFieldText = (key, fallback) => parameterDrafts[key] ?? numberToDraftText(fallback);
 
   const getFieldNumericValue = (key, fallback) => {
@@ -68,18 +98,20 @@ export default function NeuronInspector({
     requestAnimationFrame(() => target.select());
   };
 
-  // label incoming connections by source layer
-  const getIncomingSourceLabel = (weightIdx) => {
-    if (layerIdx === 1) {
-      return weightIdx === 0 ? "x₁" : weightIdx === 1 ? "x₂" : `x${weightIdx + 1}`;
-    }
-    return `h${layerIdx - 1}n${weightIdx + 1}`;
+  const getIncomingSourceLabel = (weightIdx) => getNeuronName(layers, layerIdx - 1, weightIdx);
+
+  const commitNameValue = (nextValue) => {
+    if (nextValue === customNeuronName) return;
+    setNeuronName(layerIdx, neuronIdx, nextValue);
   };
 
-  const getIncomingSourceTex = (weightIdx) => {
-    if (layerIdx === 1) return `x_{${weightIdx + 1}}`;
-    return `h_{${layerIdx - 1},${weightIdx + 1}}`;
+  const getNeuronTex = (targetLayerIdx, targetNeuronIdx) => {
+    const customName = getNeuronCustomName(layers, targetLayerIdx, targetNeuronIdx);
+    if (customName) return `\\text{${escapeLatexText(customName)}}`;
+    return getDefaultNeuronTex(targetLayerIdx, targetNeuronIdx, layers.length);
   };
+
+  const getIncomingSourceTex = (weightIdx) => getNeuronTex(layerIdx - 1, weightIdx);
 
   const formatLatexNumber = (value) => {
     if (!Number.isFinite(value)) return "0";
@@ -172,7 +204,7 @@ export default function NeuronInspector({
         const hasAnyAffineTerm = affineTerms.length > 0;
         const affineTex = hasAnyAffineTerm ? affineTerms.join(" ") : "0";
         const activatedTex = wrapActivationTex(layers[layerIdx].activation, affineTex);
-        const neuronTex = layerIdx === layers.length - 1 ? "\\mathrm{out}" : `h_{${layerIdx},${neuronIdx + 1}}`;
+        const neuronTex = getNeuronTex(layerIdx, neuronIdx);
         return `${neuronTex} = ${activatedTex}`;
       })()
     : "";
@@ -207,6 +239,41 @@ export default function NeuronInspector({
         >
           ✕
         </button>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>NAME</div>
+        <input
+          key={`name-input-${layerIdx}-${neuronIdx}-${customNeuronName}`}
+          type="text"
+          defaultValue={customNeuronName}
+          placeholder={defaultNeuronLabel}
+          onBlur={(event) => commitNameValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitNameValue(event.currentTarget.value);
+              event.currentTarget.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.currentTarget.value = customNeuronName;
+              event.currentTarget.blur();
+            }
+          }}
+          disabled={isRevealingSolution}
+          style={{
+            width: "100%",
+            background: "rgba(30,30,30,0.9)",
+            border: `1px solid ${COLORS.panelBorder}`,
+            borderRadius: 3,
+            padding: "5px 7px",
+            color: COLORS.textBright,
+            fontFamily: "'Sora', sans-serif",
+            fontSize: 12,
+            boxSizing: "border-box",
+          }}
+        />
       </div>
 
       <div

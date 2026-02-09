@@ -19,6 +19,81 @@ export const NETWORK_IMPORT_LIMITS = Object.freeze({
 });
 
 const REAL_NUMBER_PATTERN = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+const SUBSCRIPT_DIGITS = Object.freeze({
+  "0": "₀",
+  "1": "₁",
+  "2": "₂",
+  "3": "₃",
+  "4": "₄",
+  "5": "₅",
+  "6": "₆",
+  "7": "₇",
+  "8": "₈",
+  "9": "₉",
+});
+
+function toSubscriptNumber(value) {
+  return String(value)
+    .split("")
+    .map((char) => SUBSCRIPT_DIGITS[char] ?? char)
+    .join("");
+}
+
+export function normalizeNeuronName(rawName) {
+  if (typeof rawName !== "string") return "";
+  return rawName.trim();
+}
+
+function normalizeOptionalNeuronName(rawName, error) {
+  if (rawName === undefined) return { valid: true, name: "" };
+  if (typeof rawName !== "string") return { valid: false, error };
+  return { valid: true, name: normalizeNeuronName(rawName) };
+}
+
+function sanitizeInputNeuronNames(rawNames) {
+  if (rawNames === undefined) {
+    return {
+      valid: true,
+      names: Array(DEFAULT_INPUT_VALUES.length).fill(""),
+    };
+  }
+
+  if (!Array.isArray(rawNames) || rawNames.length !== DEFAULT_INPUT_VALUES.length) {
+    return {
+      valid: false,
+      error: `Input layer names must contain exactly ${DEFAULT_INPUT_VALUES.length} values.`,
+    };
+  }
+
+  const normalizedNames = [];
+  for (let inputIdx = 0; inputIdx < rawNames.length; inputIdx++) {
+    const nameResult = normalizeOptionalNeuronName(rawNames[inputIdx], `Input neuron ${inputIdx} has an invalid name.`);
+    if (!nameResult.valid) return nameResult;
+    normalizedNames.push(nameResult.name);
+  }
+
+  return { valid: true, names: normalizedNames };
+}
+
+export function getDefaultNeuronName(layerIdx, neuronIdx, layerCount) {
+  if (layerIdx === 0) return `x${toSubscriptNumber(neuronIdx + 1)}`;
+  if (layerIdx === layerCount - 1) return "out";
+  return `h${layerIdx}.${neuronIdx + 1}`;
+}
+
+export function getNeuronCustomName(layers, layerIdx, neuronIdx) {
+  const layer = layers?.[layerIdx];
+  if (!layer) return "";
+  if (layerIdx === 0) return normalizeNeuronName(layer.neuronNames?.[neuronIdx]);
+  return normalizeNeuronName(layer.neurons?.[neuronIdx]?.name);
+}
+
+export function getNeuronName(layers, layerIdx, neuronIdx) {
+  const customName = getNeuronCustomName(layers, layerIdx, neuronIdx);
+  if (customName) return customName;
+  const layerCount = Array.isArray(layers) && layers.length > 0 ? layers.length : layerIdx + 1;
+  return getDefaultNeuronName(layerIdx, neuronIdx, layerCount);
+}
 
 export function fmt(v) {
   if (v === undefined || v === null || isNaN(v)) return "0.00";
@@ -129,7 +204,17 @@ function sanitizeLayers(layers) {
   if (inputLayer.neuronCount !== DEFAULT_INPUT_VALUES.length) {
     return { valid: false, error: `Input layer must have exactly ${DEFAULT_INPUT_VALUES.length} neurons.` };
   }
-  nextLayers.push({ type: "input", activation: "linear", neuronCount: DEFAULT_INPUT_VALUES.length });
+  const inputNameResult = sanitizeInputNeuronNames(inputLayer.neuronNames);
+  if (!inputNameResult.valid) return inputNameResult;
+  const normalizedInputLayer = {
+    type: "input",
+    activation: "linear",
+    neuronCount: DEFAULT_INPUT_VALUES.length,
+  };
+  if (inputNameResult.names.some(Boolean)) {
+    normalizedInputLayer.neuronNames = inputNameResult.names;
+  }
+  nextLayers.push(normalizedInputLayer);
 
   let prevSize = DEFAULT_INPUT_VALUES.length;
   let totalWeights = 0;
@@ -172,6 +257,11 @@ function sanitizeLayers(layers) {
           error: `Layer ${layerIdx}, neuron ${neuronIdx} must have exactly ${prevSize} weights.`,
         };
       }
+      const nameResult = normalizeOptionalNeuronName(
+        neuron.name,
+        `Layer ${layerIdx}, neuron ${neuronIdx} has an invalid name.`
+      );
+      if (!nameResult.valid) return nameResult;
       if (!neuron.weights.every(isFiniteNumber)) {
         return { valid: false, error: `Layer ${layerIdx}, neuron ${neuronIdx} has invalid weights.` };
       }
@@ -182,10 +272,12 @@ function sanitizeLayers(layers) {
           error: `Network has too many weights (max ${NETWORK_IMPORT_LIMITS.maxTotalWeights}).`,
         };
       }
-      nextNeurons.push({
+      const nextNeuron = {
         bias: neuron.bias,
         weights: [...neuron.weights],
-      });
+      };
+      if (nameResult.name) nextNeuron.name = nameResult.name;
+      nextNeurons.push(nextNeuron);
     }
 
     const isOutput = layerIdx === layers.length - 1;
@@ -319,7 +411,11 @@ export function parseDraftsToNetwork(drafts, layers, inputValues) {
     nextInputValues.push(parsed.value);
   }
 
-  const nextLayers = [{ ...layers[0] }];
+  const nextInputLayer = { ...layers[0] };
+  if (Array.isArray(layers[0].neuronNames)) {
+    nextInputLayer.neuronNames = [...layers[0].neuronNames];
+  }
+  const nextLayers = [nextInputLayer];
   for (let layerIdx = 1; layerIdx < layers.length; layerIdx++) {
     const layer = layers[layerIdx];
     const nextNeurons = [];
@@ -335,10 +431,13 @@ export function parseDraftsToNetwork(drafts, layers, inputValues) {
         if (!parsedWeight.valid) return null;
         nextWeights.push(parsedWeight.value);
       }
-      nextNeurons.push({
+      const nextNeuron = {
         bias: parsedBias.value,
         weights: nextWeights,
-      });
+      };
+      const name = normalizeNeuronName(neuron.name);
+      if (name) nextNeuron.name = name;
+      nextNeurons.push(nextNeuron);
     }
     nextLayers.push({
       ...layer,
@@ -406,19 +505,33 @@ export function networkParametersEqual(aLayers, bLayers) {
 }
 
 function cloneNeuron(neuron) {
-  return { bias: neuron.bias, weights: [...neuron.weights] };
+  const nextNeuron = { bias: neuron.bias, weights: [...neuron.weights] };
+  const name = normalizeNeuronName(neuron.name);
+  if (name) nextNeuron.name = name;
+  return nextNeuron;
 }
 
 function zeroNeuronLike(neuron) {
-  return {
+  const nextNeuron = {
     bias: 0,
     weights: neuron.weights.map(() => 0),
   };
+  const name = normalizeNeuronName(neuron.name);
+  if (name) nextNeuron.name = name;
+  return nextNeuron;
+}
+
+function cloneInputLayer(layer) {
+  const nextLayer = { ...layer };
+  if (Array.isArray(layer.neuronNames)) {
+    nextLayer.neuronNames = [...layer.neuronNames];
+  }
+  return nextLayer;
 }
 
 export function cloneLayers(layers) {
   return layers.map((layer, idx) => {
-    if (idx === 0) return { ...layer };
+    if (idx === 0) return cloneInputLayer(layer);
     return {
       ...layer,
       neurons: layer.neurons.map(cloneNeuron),
@@ -428,12 +541,65 @@ export function cloneLayers(layers) {
 
 export function zeroLayersLike(templateLayers) {
   return templateLayers.map((layer, idx) => {
-    if (idx === 0) return { ...layer };
+    if (idx === 0) return cloneInputLayer(layer);
     return {
       ...layer,
       neurons: layer.neurons.map(zeroNeuronLike),
     };
   });
+}
+
+export function mergeNeuronNames(primaryLayers, fallbackLayers) {
+  const mergedLayers = cloneLayers(primaryLayers);
+  if (mergedLayers.length === 0) return mergedLayers;
+
+  const fallbackInputLayer = Array.isArray(fallbackLayers) ? fallbackLayers[0] : null;
+  const fallbackOutputLayer = Array.isArray(fallbackLayers) ? fallbackLayers[fallbackLayers.length - 1] : null;
+
+  const mergedInputLayer = mergedLayers[0];
+  const mergedInputNames = Array.from({ length: mergedInputLayer.neuronCount }, (_, neuronIdx) => {
+    const primaryName = normalizeNeuronName(mergedInputLayer.neuronNames?.[neuronIdx]);
+    if (primaryName) return primaryName;
+    return normalizeNeuronName(fallbackInputLayer?.neuronNames?.[neuronIdx]);
+  });
+  if (mergedInputNames.some(Boolean)) {
+    mergedInputLayer.neuronNames = mergedInputNames;
+  } else {
+    delete mergedInputLayer.neuronNames;
+  }
+
+  const mergedOutputLayer = mergedLayers[mergedLayers.length - 1];
+  for (let neuronIdx = 0; neuronIdx < mergedOutputLayer.neurons.length; neuronIdx++) {
+    const mergedNeuron = mergedOutputLayer.neurons[neuronIdx];
+    const fallbackNeuron = fallbackOutputLayer?.neurons?.[neuronIdx];
+    const name = normalizeNeuronName(mergedNeuron.name) || normalizeNeuronName(fallbackNeuron?.name);
+    if (name) {
+      mergedNeuron.name = name;
+    } else {
+      delete mergedNeuron.name;
+    }
+  }
+
+  const mergedHiddenLayers = mergedLayers.slice(1, -1);
+  const fallbackHiddenLayers = Array.isArray(fallbackLayers) ? fallbackLayers.slice(1, -1) : [];
+
+  for (let hiddenIdx = 0; hiddenIdx < mergedHiddenLayers.length; hiddenIdx++) {
+    const mergedHiddenLayer = mergedHiddenLayers[hiddenIdx];
+    const fallbackHiddenLayer = fallbackHiddenLayers[hiddenIdx] ?? null;
+    const canMapLayerNames = mergedHiddenLayer.neurons.length === (fallbackHiddenLayer?.neurons?.length ?? -1);
+    for (let neuronIdx = 0; neuronIdx < mergedHiddenLayer.neurons.length; neuronIdx++) {
+      const mergedNeuron = mergedHiddenLayer.neurons[neuronIdx];
+      const fallbackNeuron = canMapLayerNames ? fallbackHiddenLayer?.neurons?.[neuronIdx] : null;
+      const name = normalizeNeuronName(mergedNeuron.name) || normalizeNeuronName(fallbackNeuron?.name);
+      if (name) {
+        mergedNeuron.name = name;
+      } else {
+        delete mergedNeuron.name;
+      }
+    }
+  }
+
+  return mergedLayers;
 }
 
 export function networkArchitectureMatches(a, b) {
@@ -457,20 +623,23 @@ export function networkArchitectureMatches(a, b) {
 
 export function lerpLayers(startLayers, endLayers, t) {
   return endLayers.map((layer, layerIdx) => {
-    if (layerIdx === 0) return { ...layer };
+    if (layerIdx === 0) return cloneInputLayer(layer);
     const startLayer = startLayers[layerIdx];
     return {
       ...layer,
       neurons: layer.neurons.map((n, neuronIdx) => {
         const startNeuron = startLayer?.neurons?.[neuronIdx];
         const sb = startNeuron?.bias ?? 0;
-        return {
+        const nextNeuron = {
           bias: lerp(sb, n.bias, t),
           weights: n.weights.map((w, wi) => {
             const sw = startNeuron?.weights?.[wi] ?? 0;
             return lerp(sw, w, t);
           }),
         };
+        const name = normalizeNeuronName(n.name);
+        if (name) nextNeuron.name = name;
+        return nextNeuron;
       }),
     };
   });

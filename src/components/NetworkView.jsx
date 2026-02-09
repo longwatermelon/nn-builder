@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ACT_FNS, fmt, neuronColor } from "../lib/networkMath";
+import { ACT_FNS, fmt, getNeuronName, neuronColor } from "../lib/networkMath";
 import NeuronInspector from "./NeuronInspector";
 import { COLORS } from "../styles/theme";
 
@@ -136,6 +136,7 @@ export default function NetworkView({
   removeNeuron,
   removeLayer,
   addHiddenLayer,
+  setNeuronName,
 }) {
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
@@ -144,13 +145,6 @@ export default function NetworkView({
   const dragStartY = useRef(0);
   const dragStartH = useRef(0);
   const graphPaneRef = useRef(null);
-
-  // keep labels consistent across graph elements
-  const getNeuronLabel = (layerIdx, neuronIdx, isInput, isOutput) => {
-    if (isInput) return neuronIdx === 0 ? "x₁" : "x₂";
-    if (isOutput) return "out";
-    return `h${layerIdx}.${neuronIdx + 1}`;
-  };
 
   const layerConnectionCount = Math.max(1, layers.length - 1);
   const graphLayerGap = useMemo(() => {
@@ -351,7 +345,7 @@ export default function NetworkView({
                         fontWeight="500"
                         style={{ pointerEvents: "none" }}
                       >
-                        {getNeuronLabel(li, ni, isInput, isOutput)}
+                        {getNeuronName(layers, li, ni)}
                       </text>
                     </g>
                   );
@@ -477,6 +471,7 @@ export default function NetworkView({
             draftValidityByKey={draftValidityByKey}
             isRevealingSolution={isRevealingSolution}
             updateParameterDraft={updateParameterDraft}
+            setNeuronName={setNeuronName}
           />
         </div>
       </div>

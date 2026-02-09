@@ -19,6 +19,7 @@ import {
   createInitialNetwork,
   forwardPassFull,
   lerpLayers,
+  mergeNeuronNames,
   networkArchitectureMatches,
   networkParametersEqual,
   numericArraysEqual,
@@ -26,6 +27,7 @@ import {
   parseDraftsToNetwork,
   parseRealNumber,
   reconcileParameterDrafts,
+  normalizeNeuronName,
   zeroLayersLike,
 } from "./lib/networkMath";
 import {
@@ -346,8 +348,9 @@ export default function App() {
 
     cancelRevealAnimation();
 
-    const targetLayers = cloneLayers(activeChallenge.solutionLayers);
-    const architectureMatches = networkArchitectureMatches(layers, targetLayers);
+    const solvedLayers = cloneLayers(activeChallenge.solutionLayers);
+    const architectureMatches = networkArchitectureMatches(layers, solvedLayers);
+    const targetLayers = mergeNeuronNames(solvedLayers, layers);
     const startLayers = architectureMatches ? cloneLayers(layers) : zeroLayersLike(targetLayers);
 
     setSavedAttempt({
@@ -495,6 +498,60 @@ export default function App() {
     [isRevealingSolution]
   );
 
+  const setNeuronName = useCallback(
+    (layerIdx, neuronIdx, rawName) => {
+      if (isRevealingSolution) return;
+      const normalizedName = normalizeNeuronName(rawName);
+      setLayers((prev) => {
+        if (layerIdx < 0 || layerIdx >= prev.length) return prev;
+
+        if (layerIdx === 0) {
+          if (neuronIdx < 0 || neuronIdx >= prev[0].neuronCount) return prev;
+          const nextInputNames = Array.isArray(prev[0].neuronNames)
+            ? [...prev[0].neuronNames]
+            : Array(prev[0].neuronCount).fill("");
+          const currentName = normalizeNeuronName(nextInputNames[neuronIdx]);
+          if (currentName === normalizedName) return prev;
+
+          nextInputNames[neuronIdx] = normalizedName;
+          const nextInputLayer = { ...prev[0] };
+          if (nextInputNames.some(Boolean)) {
+            nextInputLayer.neuronNames = nextInputNames;
+          } else {
+            delete nextInputLayer.neuronNames;
+          }
+
+          const nextLayers = [...prev];
+          nextLayers[0] = nextInputLayer;
+          return nextLayers;
+        }
+
+        const layer = prev[layerIdx];
+        const neuron = layer?.neurons?.[neuronIdx];
+        if (!neuron) return prev;
+        const currentName = normalizeNeuronName(neuron.name);
+        if (currentName === normalizedName) return prev;
+
+        const nextNeuron = { ...neuron };
+        if (normalizedName) {
+          nextNeuron.name = normalizedName;
+        } else {
+          delete nextNeuron.name;
+        }
+
+        const nextNeurons = [...layer.neurons];
+        nextNeurons[neuronIdx] = nextNeuron;
+        const nextLayers = [...prev];
+        nextLayers[layerIdx] = {
+          ...layer,
+          neurons: nextNeurons,
+        };
+        return nextLayers;
+      });
+    },
+    [isRevealingSolution]
+  );
+
   const setLayerActivation = (layerIdx, act) => {
     setLayers((prev) => prev.map((layer, i) => (i === layerIdx ? { ...layer, activation: act } : layer)));
   };
@@ -508,6 +565,7 @@ export default function App() {
         return {
           ...layer,
           neurons: layer.neurons.map((n) => ({
+            ...n,
             bias: (Math.random() - 0.5) * 2,
             weights: n.weights.map(() => (Math.random() - 0.5) * 2),
           })),
@@ -845,6 +903,7 @@ export default function App() {
             removeNeuron={removeNeuron}
             removeLayer={removeLayer}
             addHiddenLayer={addHiddenLayer}
+            setNeuronName={setNeuronName}
           />
 
           <ResultsPanel
