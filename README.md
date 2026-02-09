@@ -13,8 +13,9 @@ This project is a website for students to practice their intuition on hand-craft
 ## File Structure
 
 - `src/` - Frontend app source for the neural-network builder.
+  - `src/RootApp.jsx` - Top-level app gate that decides between the onboarding prompt, tutorial mode, and the regular app.
   - `src/App.jsx` - Main orchestration layer that wires challenge mode/sandbox mode, editor interactions, and results area state.
-  - `src/main.jsx` - React entry point that mounts `App`.
+  - `src/main.jsx` - React entry point that mounts `RootApp`.
   - `src/index.css` - Global baseline styles loaded once at startup.
   - `src/styles/theme.js` - Shared color tokens and reusable inline button style objects.
   - `src/lib/clipboard.js` - Shared clipboard-copy helper with API fallback handling.
@@ -23,11 +24,13 @@ This project is a website for students to practice their intuition on hand-craft
   - `src/lib/heatmap.js` - Heatmap grid sampling, scoring math support utilities, and canvas rendering helpers.
   - `src/features/challenges/challenges.js` - Challenge catalog (each challenge is one target function) and canonical solution factories.
   - `src/features/challenges/score.js` - Challenge match-score labels and gradient color mapping.
+  - `src/features/tutorial/steps.js` - Guided tutorial step catalog, onboarding storage key, and per-step editor UI policies.
   - `src/components/MathText.jsx` - Shared KaTeX renderer for math expressions in the UI.
   - `src/components/ChallengeThumbnail.jsx` - Small canvas preview for challenge cards.
   - `src/components/ChallengeLibrary.jsx` - Challenge library (left sidebar challenge list with selection + solved state).
   - `src/components/NeuronInspector.jsx` - Neuron inspector portion of the editor for editing selected neuron inputs, biases, and weights.
   - `src/components/NetworkView.jsx` - Network view portion of the editor: SVG network graph + embedded per-layer architecture controls + neuron selection.
   - `src/components/ResultsPanel.jsx` - Results area: challenge matchup view or sandbox output heatmap view.
+  - `src/components/TutorialExperience.jsx` - Dedicated beginner tutorial workspace with guided lessons, constrained editor controls, and target-vs-network heatmaps.
 
 - `README.md` - Source-of-truth map for this structure. If you add, remove, or repurpose files/directories, update this document in the same change.

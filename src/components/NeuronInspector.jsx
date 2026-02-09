@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   biasFieldKey,
   clamp,
@@ -50,6 +50,13 @@ export default function NeuronInspector({
   showParamSliders,
   updateParameterDraft,
   setNeuronName,
+  showNameField = true,
+  showInputValueSection = true,
+  showEquationSection = true,
+  showBiasSection = true,
+  showWeightsSection = true,
+  hiddenIncomingWeightIndexes = [],
+  showClearSelectionButton = true,
 }) {
   const layerIdx = sel?.layerIdx ?? 0;
   const neuronIdx = sel?.neuronIdx ?? 0;
@@ -60,6 +67,10 @@ export default function NeuronInspector({
   const neuronLabel = getNeuronName(layers, layerIdx, neuronIdx);
   const nameInputRef = useRef(null);
   const shouldFocusNameFieldRef = useRef(false);
+  const hiddenIncomingWeightIndexSet = useMemo(
+    () => new Set(Array.isArray(hiddenIncomingWeightIndexes) ? hiddenIncomingWeightIndexes : []),
+    [hiddenIncomingWeightIndexes]
+  );
 
   useEffect(() => {
     if (!sel) {
@@ -256,60 +267,64 @@ export default function NeuronInspector({
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.textBright }}>Neuron {neuronLabel}</div>
         </div>
-        <button
-          onClick={() => setSel(null)}
-          aria-label="Clear selection"
-          style={{
-            background: "rgba(30,30,30,0.7)",
-            border: `1px solid ${COLORS.panelBorder}`,
-            borderRadius: 3,
-            color: COLORS.textMuted,
-            cursor: "pointer",
-            padding: "3px 7px",
-            fontSize: 11,
-          }}
-        >
-          ✕
-        </button>
+        {showClearSelectionButton && (
+          <button
+            onClick={() => setSel(null)}
+            aria-label="Clear selection"
+            style={{
+              background: "rgba(30,30,30,0.7)",
+              border: `1px solid ${COLORS.panelBorder}`,
+              borderRadius: 3,
+              color: COLORS.textMuted,
+              cursor: "pointer",
+              padding: "3px 7px",
+              fontSize: 11,
+            }}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>NAME</div>
-        <input
-          ref={nameInputRef}
-          key={`name-input-${layerIdx}-${neuronIdx}-${customNeuronName}`}
-          type="text"
-          defaultValue={customNeuronName}
-          placeholder={defaultNeuronLabel}
-          onBlur={(event) => commitNameValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              commitNameValue(event.currentTarget.value);
-              selectNextNeuronInLayer();
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              event.currentTarget.value = customNeuronName;
-              event.currentTarget.blur();
-            }
-          }}
-          disabled={isRevealingSolution}
-          style={{
-            width: "100%",
-            background: "rgba(30,30,30,0.9)",
-            border: `1px solid ${COLORS.panelBorder}`,
-            borderRadius: 3,
-            padding: "5px 7px",
-            color: COLORS.textBright,
-            fontFamily: "'Sora', sans-serif",
-            fontSize: 12,
-            boxSizing: "border-box",
-          }}
-        />
-      </div>
+      {showNameField && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>NAME</div>
+          <input
+            ref={nameInputRef}
+            key={`name-input-${layerIdx}-${neuronIdx}-${customNeuronName}`}
+            type="text"
+            defaultValue={customNeuronName}
+            placeholder={defaultNeuronLabel}
+            onBlur={(event) => commitNameValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitNameValue(event.currentTarget.value);
+                selectNextNeuronInLayer();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.currentTarget.value = customNeuronName;
+                event.currentTarget.blur();
+              }
+            }}
+            disabled={isRevealingSolution}
+            style={{
+              width: "100%",
+              background: "rgba(30,30,30,0.9)",
+              border: `1px solid ${COLORS.panelBorder}`,
+              borderRadius: 3,
+              padding: "5px 7px",
+              color: COLORS.textBright,
+              fontFamily: "'Sora', sans-serif",
+              fontSize: 12,
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+      )}
 
-      {isInput && (
+      {isInput && showInputValueSection && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INPUT VALUE</div>
           {numberInput(inputFieldKey(neuronIdx), inputValues[neuronIdx], neuronLabel)}
@@ -328,7 +343,7 @@ export default function NeuronInspector({
         </div>
       )}
 
-      {!isInput && (
+      {!isInput && showEquationSection && (
         <div
           style={{
             marginBottom: 10,
@@ -343,7 +358,7 @@ export default function NeuronInspector({
         </div>
       )}
 
-      {!isInput && (
+      {!isInput && showBiasSection && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>BIAS</div>
           {numberInput(biasFieldKey(layerIdx, neuronIdx), layers[layerIdx].neurons[neuronIdx].bias, "b")}
@@ -362,10 +377,11 @@ export default function NeuronInspector({
         </div>
       )}
 
-      {!isInput && (
+      {!isInput && showWeightsSection && (
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMuted, marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>INCOMING WEIGHTS</div>
           {layers[layerIdx].neurons[neuronIdx].weights.map((w, wi) => {
+            if (hiddenIncomingWeightIndexSet.has(wi)) return null;
             const prevLabel = getIncomingSourceLabel(wi);
             const key = weightFieldKey(layerIdx, neuronIdx, wi);
             const sliderValue = clamp(getFieldNumericValue(key, w), -5, 5);

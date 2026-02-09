@@ -137,6 +137,10 @@ export default function NetworkView({
   removeLayer,
   addHiddenLayer,
   setNeuronName,
+  showLayerCards = true,
+  showActivationControls = true,
+  showArchitectureControls = true,
+  inspectorOptions = {},
 }) {
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
@@ -353,103 +357,105 @@ export default function NetworkView({
               )}
             </svg>
 
-            <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-              {layers.map((layer, layerIdx) => {
-                const x = neuronPositions[layerIdx]?.[0]?.x;
-                if (typeof x !== "number") return null;
+            {showLayerCards && (
+              <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                {layers.map((layer, layerIdx) => {
+                  const x = neuronPositions[layerIdx]?.[0]?.x;
+                  if (typeof x !== "number") return null;
 
-                const isInput = layerIdx === 0;
-                const isOutput = layerIdx === layers.length - 1;
-                const layerSize = layerSizes[layerIdx] ?? 0;
-                const layerLabel = isInput ? `Input (${layerSize})` : isOutput ? `Output (${layerSize})` : `Hidden ${layerIdx}`;
-                const canRemoveNeuron = !isInput && !isOutput && layer.neurons.length > 1;
+                  const isInput = layerIdx === 0;
+                  const isOutput = layerIdx === layers.length - 1;
+                  const layerSize = layerSizes[layerIdx] ?? 0;
+                  const layerLabel = isInput ? `Input (${layerSize})` : isOutput ? `Output (${layerSize})` : `Hidden ${layerIdx}`;
+                  const canRemoveNeuron = !isInput && !isOutput && layer.neurons.length > 1;
 
-                return (
-                  <div key={`layer-controls-${layerIdx}`} style={{ ...LAYER_CARD_BASE_STYLE, left: `${(x / graphWidth) * 100}%` }}>
-                    <div style={LAYER_CARD_LABEL_STYLE} title={layerLabel}>
-                      {layerLabel}
-                    </div>
-
-                    {!isInput && (
-                      <select
-                        value={layer.activation}
-                        onChange={(e) => setLayerActivation(layerIdx, e.target.value)}
-                        style={LAYER_ACTIVATION_SELECT_STYLE}
-                      >
-                        {Object.entries(ACT_FNS).map(([key, value]) => (
-                          <option key={key} value={key}>
-                            {value.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-
-                    {!isInput && !isOutput && (
-                      <div style={HIDDEN_LAYER_ROW_STYLE}>
-                        <button
-                          onClick={() => removeNeuron(layerIdx, layer.neurons.length - 1)}
-                          title="Remove neuron"
-                          disabled={!canRemoveNeuron}
-                          style={{
-                            ...LAYER_CONTROL_BUTTON_BASE_STYLE,
-                            cursor: canRemoveNeuron ? "pointer" : "not-allowed",
-                            opacity: canRemoveNeuron ? 1 : 0.45,
-                          }}
-                        >
-                          −
-                        </button>
-                        <span style={LAYER_CONTROL_COUNT_STYLE}>{layer.neurons.length}</span>
-                        <button onClick={() => addNeuron(layerIdx)} title="Add neuron" style={LAYER_CONTROL_BUTTON_BASE_STYLE}>
-                          +
-                        </button>
-                        <button
-                          onClick={() => removeLayer(layerIdx)}
-                          title="Remove layer"
-                          style={{
-                            ...LAYER_CONTROL_BUTTON_BASE_STYLE,
-                            border: `1px solid ${COLORS.negative}40`,
-                            color: COLORS.negative,
-                          }}
-                        >
-                          ✕
-                        </button>
+                  return (
+                    <div key={`layer-controls-${layerIdx}`} style={{ ...LAYER_CARD_BASE_STYLE, left: `${(x / graphWidth) * 100}%` }}>
+                      <div style={LAYER_CARD_LABEL_STYLE} title={layerLabel}>
+                        {layerLabel}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
 
-              {layers.length >= 2 && (() => {
-                const leftLayerPositions = neuronPositions[layers.length - 2];
-                const rightLayerPositions = neuronPositions[layers.length - 1];
-                const leftBottom = leftLayerPositions?.[leftLayerPositions.length - 1] ?? leftLayerPositions?.[0];
-                const rightAnchor = rightLayerPositions?.[rightLayerPositions.length - 1] ?? rightLayerPositions?.[0];
-                if (!leftBottom || !rightAnchor) return null;
+                      {!isInput && showActivationControls && (
+                        <select
+                          value={layer.activation}
+                          onChange={(e) => setLayerActivation(layerIdx, e.target.value)}
+                          style={LAYER_ACTIVATION_SELECT_STYLE}
+                        >
+                          {Object.entries(ACT_FNS).map(([key, value]) => (
+                            <option key={key} value={key}>
+                              {value.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
 
-                const midpointX = (leftBottom.x + rightAnchor.x) / 2;
-                const minX = INSERT_HIDDEN_BUTTON_RADIUS + INSERT_HIDDEN_BUTTON_EDGE_GAP;
-                const maxX = graphWidth - INSERT_HIDDEN_BUTTON_RADIUS - INSERT_HIDDEN_BUTTON_EDGE_GAP;
-                const insertX = Math.min(maxX, Math.max(minX, midpointX));
-                const minY = INSERT_HIDDEN_BUTTON_RADIUS + INSERT_HIDDEN_BUTTON_EDGE_GAP;
-                const maxY = SVG_H - INSERT_HIDDEN_BUTTON_RADIUS - INSERT_HIDDEN_BUTTON_EDGE_GAP;
-                const insertY = Math.min(maxY, Math.max(minY, leftBottom.y + INSERT_HIDDEN_BUTTON_Y_OFFSET));
+                      {!isInput && !isOutput && showArchitectureControls && (
+                        <div style={HIDDEN_LAYER_ROW_STYLE}>
+                          <button
+                            onClick={() => removeNeuron(layerIdx, layer.neurons.length - 1)}
+                            title="Remove neuron"
+                            disabled={!canRemoveNeuron}
+                            style={{
+                              ...LAYER_CONTROL_BUTTON_BASE_STYLE,
+                              cursor: canRemoveNeuron ? "pointer" : "not-allowed",
+                              opacity: canRemoveNeuron ? 1 : 0.45,
+                            }}
+                          >
+                            −
+                          </button>
+                          <span style={LAYER_CONTROL_COUNT_STYLE}>{layer.neurons.length}</span>
+                          <button onClick={() => addNeuron(layerIdx)} title="Add neuron" style={LAYER_CONTROL_BUTTON_BASE_STYLE}>
+                            +
+                          </button>
+                          <button
+                            onClick={() => removeLayer(layerIdx)}
+                            title="Remove layer"
+                            style={{
+                              ...LAYER_CONTROL_BUTTON_BASE_STYLE,
+                              border: `1px solid ${COLORS.negative}40`,
+                              color: COLORS.negative,
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
-                return (
-                  <button
-                    onClick={addHiddenLayer}
-                    title="Add hidden layer"
-                    aria-label="Add hidden layer"
-                    style={{
-                      ...INSERT_HIDDEN_LAYER_BUTTON_STYLE,
-                      left: `${(insertX / graphWidth) * 100}%`,
-                      top: `${(insertY / SVG_H) * 100}%`,
-                    }}
-                  >
-                    +
-                  </button>
-                );
-              })()}
-            </div>
+                {showArchitectureControls && layers.length >= 2 && (() => {
+                  const leftLayerPositions = neuronPositions[layers.length - 2];
+                  const rightLayerPositions = neuronPositions[layers.length - 1];
+                  const leftBottom = leftLayerPositions?.[leftLayerPositions.length - 1] ?? leftLayerPositions?.[0];
+                  const rightAnchor = rightLayerPositions?.[rightLayerPositions.length - 1] ?? rightLayerPositions?.[0];
+                  if (!leftBottom || !rightAnchor) return null;
+
+                  const midpointX = (leftBottom.x + rightAnchor.x) / 2;
+                  const minX = INSERT_HIDDEN_BUTTON_RADIUS + INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                  const maxX = graphWidth - INSERT_HIDDEN_BUTTON_RADIUS - INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                  const insertX = Math.min(maxX, Math.max(minX, midpointX));
+                  const minY = INSERT_HIDDEN_BUTTON_RADIUS + INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                  const maxY = SVG_H - INSERT_HIDDEN_BUTTON_RADIUS - INSERT_HIDDEN_BUTTON_EDGE_GAP;
+                  const insertY = Math.min(maxY, Math.max(minY, leftBottom.y + INSERT_HIDDEN_BUTTON_Y_OFFSET));
+
+                  return (
+                    <button
+                      onClick={addHiddenLayer}
+                      title="Add hidden layer"
+                      aria-label="Add hidden layer"
+                      style={{
+                        ...INSERT_HIDDEN_LAYER_BUTTON_STYLE,
+                        left: `${(insertX / graphWidth) * 100}%`,
+                        top: `${(insertY / SVG_H) * 100}%`,
+                      }}
+                    >
+                      +
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
         </div>
         </div>
         <div
@@ -471,6 +477,7 @@ export default function NetworkView({
             showParamSliders={showParamSliders}
             updateParameterDraft={updateParameterDraft}
             setNeuronName={setNeuronName}
+            {...inspectorOptions}
           />
         </div>
       </div>
