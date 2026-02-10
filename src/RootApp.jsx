@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import App from "./App";
+import MathText from "./components/MathText";
 import TutorialExperience from "./components/TutorialExperience";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY } from "./features/tutorial/steps";
+import { DOMAIN } from "./lib/heatmap";
 import { btnStyle, COLORS } from "./styles/theme";
+
+const TARGET_FUNCTION_EXAMPLE_TEX = String.raw`f(x_1, x_2) = \lvert x_1 - x_2 \rvert`;
+const RELU_COMPOSITION_EXAMPLE_TEX = String.raw`f(x_1, x_2) = \operatorname{ReLU}(x_1 - x_2) + \operatorname{ReLU}(x_2 - x_1)`;
+const DOMAIN_TEX = String.raw`${DOMAIN[0]} \le x_1, x_2 \le ${DOMAIN[1]}`;
 
 function clampStepIndex(value) {
   if (!Number.isInteger(value)) return 0;
@@ -235,30 +241,86 @@ export default function RootApp() {
             alignItems: "center",
             justifyContent: "center",
             padding: 16,
+            overflowY: "auto",
           }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboarding-overview-title"
+            aria-describedby="onboarding-overview-description onboarding-overview-build-note onboarding-overview-example-summary onboarding-overview-question"
             style={{
               width: "min(540px, 100%)",
               background: COLORS.panel,
               border: `1px solid ${COLORS.panelBorder}`,
               borderRadius: 8,
               padding: 16,
+              maxHeight: "calc(100dvh - 32px)",
+              overflowY: "auto",
               display: "flex",
               flexDirection: "column",
               gap: 12,
             }}
           >
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.textBright }}>New here?</div>
-            <div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
-              Want a guided walkthrough before jumping into the full challenge library?
+            <div id="onboarding-overview-title" style={{ fontSize: 16, fontWeight: 700, color: COLORS.textBright }}>
+              How this puzzle game works
             </div>
-            <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.45 }}>
-              You will get a component tour first, then a short first-touch warm-up before concept steps begin.
+            <div id="onboarding-overview-description" style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
+              Each challenge gives you a target function <MathText tex="f(x_1, x_2)" style={{ fontSize: 13 }} /> over the domain
+              <MathText tex={DOMAIN_TEX} style={{ fontSize: 13, marginLeft: 4 }} />. Your job is to tune a neural network so its output matches
+              the target function as closely as possible across that domain.
+            </div>
+            <div id="onboarding-overview-build-note" style={{ fontSize: 12, color: COLORS.text, lineHeight: 1.45 }}>
+              You build complex behavior by composing simpler neuron activations, layer by layer.
+            </div>
+            <div
+              id="onboarding-overview-example-summary"
+              style={{
+                position: "absolute",
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: "hidden",
+                clip: "rect(0, 0, 0, 0)",
+                whiteSpace: "nowrap",
+                border: 0,
+              }}
+            >
+              Example: the absolute difference of x1 and x2 can be composed as ReLU of x1 minus x2 plus ReLU of x2 minus x1.
+            </div>
+            <div
+              id="onboarding-overview-example"
+              style={{
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.panelBorder}`,
+                borderRadius: 6,
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <div style={{ fontSize: 11, letterSpacing: 0.3, textTransform: "uppercase", color: COLORS.textMuted }}>Example</div>
+              <div style={{ fontSize: 12, color: COLORS.text, lineHeight: 1.5 }}>
+                Target function:
+                <div style={{ marginTop: 4, overflowX: "auto", paddingBottom: 2 }}>
+                  <MathText tex={TARGET_FUNCTION_EXAMPLE_TEX} displayMode style={{ fontSize: 13, color: COLORS.textBright }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.text, lineHeight: 1.5 }}>
+                One composition with ReLU blocks:
+                <div style={{ marginTop: 4, overflowX: "auto", paddingBottom: 2 }}>
+                  <MathText tex={RELU_COMPOSITION_EXAMPLE_TEX} displayMode style={{ fontSize: 13, color: COLORS.textBright }} />
+                </div>
+              </div>
+            </div>
+            <div id="onboarding-overview-question" style={{ fontSize: 12, color: COLORS.text, lineHeight: 1.45 }}>
+              Want to enter the tutorial or skip and explore on your own?
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
               <button onClick={handleSkipTutorial} style={btnStyle}>
-                No thanks
+                Explore on your own
               </button>
               <button
                 onClick={handleStartTutorial}
@@ -268,7 +330,7 @@ export default function RootApp() {
                   color: COLORS.accent,
                 }}
               >
-                Start tutorial
+                Enter tutorial
               </button>
             </div>
           </div>
