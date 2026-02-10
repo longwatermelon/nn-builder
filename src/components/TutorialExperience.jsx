@@ -27,6 +27,7 @@ const TOUR_SPOTLIGHT_PADDING = 10;
 const TOUR_VIEWPORT_EDGE_PADDING = 8;
 const TOUR_TOOLTIP_WIDTH = 320;
 const TOUR_TOOLTIP_ESTIMATED_HEIGHT = 190;
+const TOUR_OVERLAY_COLOR = "rgba(0, 0, 0, 0.58)";
 
 function getSelectionHintLabel(layers, selection) {
   if (!selection) return "";
@@ -391,6 +392,9 @@ export default function TutorialExperience({
     const clampedNextIndex = clampStepIndex(nextIndex);
     const nextState = createStepRuntimeState(TUTORIAL_STEPS[clampedNextIndex]);
     const shouldRequireWarmupSelection = clampedNextIndex === 0 && !isWarmupComplete;
+    layersRef.current = nextState.layers;
+    inputValuesRef.current = nextState.inputValues;
+    parameterDraftsRef.current = nextState.parameterDrafts;
     setStepIndex(clampedNextIndex);
     setLayers(nextState.layers);
     setInputValues(nextState.inputValues);
@@ -474,6 +478,7 @@ export default function TutorialExperience({
     12,
     Math.max(12, tourViewport.height - TOUR_TOOLTIP_ESTIMATED_HEIGHT - 12)
   );
+  const spotlightShadowSpread = Math.max(tourViewport.width, tourViewport.height, 2000);
 
   return (
     <div
@@ -852,7 +857,7 @@ export default function TutorialExperience({
 
       {isTourActive && activeTourStop && (
         <div style={{ position: "fixed", inset: 0, zIndex: 120 }}>
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0, 0, 0, 0.58)" }} />
+          {!tourHighlightRect && <div style={{ position: "absolute", inset: 0, background: TOUR_OVERLAY_COLOR }} />}
 
           {tourHighlightRect && (
             <div
@@ -864,7 +869,7 @@ export default function TutorialExperience({
                 height: tourHighlightRect.height,
                 borderRadius: 8,
                 border: `2px solid ${COLORS.accent}`,
-                boxShadow: `0 0 0 1px ${COLORS.accent}55, 0 0 24px ${COLORS.accent}55`,
+                boxShadow: `0 0 0 ${spotlightShadowSpread}px ${TOUR_OVERLAY_COLOR}, 0 0 0 1px ${COLORS.accent}55, 0 0 24px ${COLORS.accent}55`,
               }}
             />
           )}
