@@ -13,6 +13,7 @@ import {
   parseDraftsToNetwork,
   parseRealNumber,
   reconcileParameterDrafts,
+  zeroLayersLike,
 } from "../lib/networkMath";
 import { btnStyle, COLORS, subtleBtnStyle } from "../styles/theme";
 import MathText from "./MathText";
@@ -41,7 +42,7 @@ function getSelectionHintLabel(layers, selection) {
 }
 
 function createStepRuntimeState(step) {
-  const nextLayers = step.initialNetworkFactory();
+  const nextLayers = zeroLayersLike(step.initialNetworkFactory());
   const nextInputValues = Array.isArray(step.initialInputValues)
     ? [...step.initialInputValues]
     : [...DEFAULT_INPUT_VALUES];

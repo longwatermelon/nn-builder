@@ -1,25 +1,25 @@
 import { MATCH_SCORE_THRESHOLD } from "../challenges/score";
 
-function createLinearTutorialNetwork({ weights, bias = 0, activation = "linear" }) {
+function createLinearTutorialNetwork() {
   return [
     { type: "input", activation: "linear", neuronCount: 2 },
     {
       type: "output",
-      activation,
-      neurons: [{ bias, weights: [...weights] }],
+      activation: "linear",
+      neurons: [{ bias: 0, weights: [0, 0] }],
     },
   ];
 }
 
-function createAbsoluteValueStarterNetwork() {
+function createAbsoluteValueTutorialNetwork() {
   return [
     { type: "input", activation: "linear", neuronCount: 2 },
     {
       type: "hidden",
       activation: "relu",
       neurons: [
-        { bias: 0, weights: [1, 0] },
-        { bias: 0, weights: [-1, 0] },
+        { bias: 0, weights: [0, 0] },
+        { bias: 0, weights: [0, 0] },
       ],
     },
     {
@@ -42,7 +42,7 @@ export const TUTORIAL_STEPS = [
     hint: "Try w(x_1) = 1 and w(x_2) = 1.",
     targetFn: (x1, x2) => x1 + x2,
     scoreThreshold: MATCH_SCORE_THRESHOLD,
-    initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [0, 0], bias: 0 }),
+    initialNetworkFactory: createLinearTutorialNetwork,
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
     networkViewPolicy: {
       showLayerCards: false,
@@ -65,7 +65,7 @@ export const TUTORIAL_STEPS = [
     hint: "After w(x_1) = 1 and w(x_2) = 1, set b = 1.",
     targetFn: (x1, x2) => x1 + x2 + 1,
     scoreThreshold: MATCH_SCORE_THRESHOLD,
-    initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [0.9, 0.9], bias: 0 }),
+    initialNetworkFactory: createLinearTutorialNetwork,
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
     networkViewPolicy: {
       showLayerCards: false,
@@ -88,7 +88,7 @@ export const TUTORIAL_STEPS = [
     hint: "Try w(x_1) = 1, w(x_2) = -1, and b = 0.",
     targetFn: (x1, x2) => x1 - x2,
     scoreThreshold: MATCH_SCORE_THRESHOLD,
-    initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [0.8, 0.8], bias: 0.2 }),
+    initialNetworkFactory: createLinearTutorialNetwork,
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
     networkViewPolicy: {
       showLayerCards: false,
@@ -113,7 +113,7 @@ export const TUTORIAL_STEPS = [
     completionHint: "Choose ReLU activation to complete this step.",
     targetFn: (x1) => Math.max(0, x1),
     scoreThreshold: MATCH_SCORE_THRESHOLD,
-    initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [1, 0], bias: 0, activation: "linear" }),
+    initialNetworkFactory: createLinearTutorialNetwork,
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
     networkViewPolicy: {
       showLayerCards: true,
@@ -136,7 +136,7 @@ export const TUTORIAL_STEPS = [
     hint: "Select the output neuron and try weights [1, 1] with bias 0.",
     targetFn: (x1) => Math.abs(x1),
     scoreThreshold: MATCH_SCORE_THRESHOLD,
-    initialNetworkFactory: () => createAbsoluteValueStarterNetwork(),
+    initialNetworkFactory: createAbsoluteValueTutorialNetwork,
     initialSelection: { layerIdx: 2, neuronIdx: 0 },
     networkViewPolicy: {
       showLayerCards: true,
