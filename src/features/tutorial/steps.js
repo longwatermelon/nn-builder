@@ -44,7 +44,6 @@ export const TUTORIAL_STEPS = [
     scoreThreshold: MATCH_SCORE_THRESHOLD,
     initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [0, 0], bias: 0 }),
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
-    lockedSelectionLayerIdx: 1,
     networkViewPolicy: {
       showLayerCards: false,
       showActivationControls: false,
@@ -68,7 +67,6 @@ export const TUTORIAL_STEPS = [
     scoreThreshold: MATCH_SCORE_THRESHOLD,
     initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [0.9, 0.9], bias: 0 }),
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
-    lockedSelectionLayerIdx: 1,
     networkViewPolicy: {
       showLayerCards: false,
       showActivationControls: false,
@@ -92,7 +90,6 @@ export const TUTORIAL_STEPS = [
     scoreThreshold: MATCH_SCORE_THRESHOLD,
     initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [0.8, 0.8], bias: 0.2 }),
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
-    lockedSelectionLayerIdx: 1,
     networkViewPolicy: {
       showLayerCards: false,
       showActivationControls: false,
@@ -118,7 +115,6 @@ export const TUTORIAL_STEPS = [
     scoreThreshold: MATCH_SCORE_THRESHOLD,
     initialNetworkFactory: () => createLinearTutorialNetwork({ weights: [1, 0], bias: 0, activation: "linear" }),
     initialSelection: { layerIdx: 1, neuronIdx: 0 },
-    lockedSelectionLayerIdx: 1,
     networkViewPolicy: {
       showLayerCards: true,
       showActivationControls: true,
@@ -142,7 +138,6 @@ export const TUTORIAL_STEPS = [
     scoreThreshold: MATCH_SCORE_THRESHOLD,
     initialNetworkFactory: () => createAbsoluteValueStarterNetwork(),
     initialSelection: { layerIdx: 2, neuronIdx: 0 },
-    lockedSelectionLayerIdx: 2,
     networkViewPolicy: {
       showLayerCards: true,
       showActivationControls: false,

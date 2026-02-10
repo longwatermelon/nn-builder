@@ -121,6 +121,15 @@ const INSERT_HIDDEN_LAYER_BUTTON_STYLE = {
   fontFamily: "'DM Mono', monospace",
 };
 
+function assignRefValue(targetRef, value) {
+  if (!targetRef) return;
+  if (typeof targetRef === "function") {
+    targetRef(value);
+    return;
+  }
+  targetRef.current = value;
+}
+
 export default function NetworkView({
   layers,
   layerSizes,
@@ -143,6 +152,8 @@ export default function NetworkView({
   showActivationControls = true,
   showArchitectureControls = true,
   inspectorOptions = {},
+  graphPaneContainerRef = null,
+  inspectorPaneContainerRef = null,
 }) {
   const [netHeight, setNetHeight] = useState(340);
   const [dragging, setDragging] = useState(false);
@@ -264,7 +275,13 @@ export default function NetworkView({
       }}
     >
       <div style={{ display: "flex", height: effectiveNetHeight }}>
-        <div ref={graphPaneRef} style={{ flex: "0 0 60%", minWidth: 0, overflowX: "auto", overflowY: "hidden" }}>
+        <div
+          ref={(node) => {
+            graphPaneRef.current = node;
+            assignRefValue(graphPaneContainerRef, node);
+          }}
+          style={{ flex: "0 0 60%", minWidth: 0, overflowX: "auto", overflowY: "hidden" }}
+        >
           <div style={{ position: "relative", width: graphWidth, height: "100%" }}>
             <svg
               width={graphWidth}
@@ -490,6 +507,7 @@ export default function NetworkView({
         </div>
         </div>
         <div
+          ref={(node) => assignRefValue(inspectorPaneContainerRef, node)}
           style={{
             flex: "0 0 40%",
             minWidth: 0,

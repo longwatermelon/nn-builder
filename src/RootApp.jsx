@@ -9,69 +9,66 @@ function clampStepIndex(value) {
   return Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, value));
 }
 
+function createDefaultOnboardingState() {
+  return {
+    status: "prompt",
+    stepIndex: 0,
+    updatedAt: Date.now(),
+    startedFromCompleted: false,
+    hasSeenWorkspaceTour: false,
+    hasCompletedWarmup: false,
+  };
+}
+
 function loadOnboardingState() {
-  if (typeof window === "undefined") {
-    return {
-      status: "prompt",
-      stepIndex: 0,
-      updatedAt: Date.now(),
-      startedFromCompleted: false,
-    };
-  }
+  if (typeof window === "undefined") return createDefaultOnboardingState();
 
   try {
     const raw = window.localStorage.getItem(TUTORIAL_STORAGE_KEY);
-    if (!raw) {
-      return {
-        status: "prompt",
-        stepIndex: 0,
-        updatedAt: Date.now(),
-        startedFromCompleted: false,
-      };
-    }
+    if (!raw) return createDefaultOnboardingState();
 
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      return {
-        status: "prompt",
-        stepIndex: 0,
-        updatedAt: Date.now(),
-        startedFromCompleted: false,
-      };
-    }
+    if (!parsed || typeof parsed !== "object") return createDefaultOnboardingState();
 
     const status = parsed.status;
+    const hasSeenWorkspaceTour = parsed.hasSeenWorkspaceTour === true;
+    const hasCompletedWarmup = parsed.hasCompletedWarmup === true;
     if (status === "in_progress") {
       return {
         status,
         stepIndex: clampStepIndex(parsed.stepIndex),
         updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : Date.now(),
         startedFromCompleted: parsed.startedFromCompleted === true,
+        hasSeenWorkspaceTour,
+        hasCompletedWarmup,
       };
     }
 
-    if (status === "completed" || status === "skipped") {
+    if (status === "completed") {
       return {
         status,
         stepIndex: clampStepIndex(parsed.stepIndex),
         updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : Date.now(),
         startedFromCompleted: false,
+        hasSeenWorkspaceTour: true,
+        hasCompletedWarmup: true,
       };
     }
 
-    return {
-      status: "prompt",
-      stepIndex: 0,
-      updatedAt: Date.now(),
-      startedFromCompleted: false,
-    };
+    if (status === "skipped") {
+      return {
+        status,
+        stepIndex: clampStepIndex(parsed.stepIndex),
+        updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : Date.now(),
+        startedFromCompleted: false,
+        hasSeenWorkspaceTour,
+        hasCompletedWarmup,
+      };
+    }
+
+    return createDefaultOnboardingState();
   } catch {
-    return {
-      status: "prompt",
-      stepIndex: 0,
-      updatedAt: Date.now(),
-      startedFromCompleted: false,
-    };
+    return createDefaultOnboardingState();
   }
 }
 
@@ -107,6 +104,8 @@ export default function RootApp() {
       stepIndex: 0,
       updatedAt: Date.now(),
       startedFromCompleted: false,
+      hasSeenWorkspaceTour: false,
+      hasCompletedWarmup: false,
     });
   }, []);
 
@@ -116,6 +115,8 @@ export default function RootApp() {
       stepIndex: 0,
       updatedAt: Date.now(),
       startedFromCompleted: false,
+      hasSeenWorkspaceTour: false,
+      hasCompletedWarmup: false,
     });
   }, []);
 
@@ -131,6 +132,8 @@ export default function RootApp() {
           stepIndex: TUTORIAL_STEPS.length - 1,
           updatedAt: Date.now(),
           startedFromCompleted: false,
+          hasSeenWorkspaceTour: true,
+          hasCompletedWarmup: true,
         };
       }
 
@@ -139,6 +142,8 @@ export default function RootApp() {
         stepIndex: clampedStepIndex,
         updatedAt: Date.now(),
         startedFromCompleted: false,
+        hasSeenWorkspaceTour: prev.hasSeenWorkspaceTour,
+        hasCompletedWarmup: prev.hasCompletedWarmup,
       };
     });
   }, []);
@@ -149,6 +154,8 @@ export default function RootApp() {
       stepIndex: TUTORIAL_STEPS.length - 1,
       updatedAt: Date.now(),
       startedFromCompleted: false,
+      hasSeenWorkspaceTour: true,
+      hasCompletedWarmup: true,
     });
   }, []);
 
@@ -169,7 +176,31 @@ export default function RootApp() {
       stepIndex: prev.status === "completed" ? 0 : clampStepIndex(prev.stepIndex),
       updatedAt: Date.now(),
       startedFromCompleted: prev.status === "completed",
+      hasSeenWorkspaceTour: prev.hasSeenWorkspaceTour,
+      hasCompletedWarmup: prev.hasCompletedWarmup,
     }));
+  }, []);
+
+  const handleWorkspaceTourSeen = useCallback(() => {
+    setOnboardingState((prev) => {
+      if (prev.status !== "in_progress" || prev.hasSeenWorkspaceTour) return prev;
+      return {
+        ...prev,
+        hasSeenWorkspaceTour: true,
+        updatedAt: Date.now(),
+      };
+    });
+  }, []);
+
+  const handleWarmupCompleted = useCallback(() => {
+    setOnboardingState((prev) => {
+      if (prev.status !== "in_progress" || prev.hasCompletedWarmup) return prev;
+      return {
+        ...prev,
+        hasCompletedWarmup: true,
+        updatedAt: Date.now(),
+      };
+    });
   }, []);
 
   return (
@@ -182,9 +213,13 @@ export default function RootApp() {
         <div style={{ position: "fixed", inset: 0, zIndex: 90 }}>
           <TutorialExperience
             initialStepIndex={onboardingState.stepIndex}
+            hasSeenWorkspaceTour={onboardingState.hasSeenWorkspaceTour}
+            hasCompletedWarmup={onboardingState.hasCompletedWarmup}
             onStepIndexChange={handleStepIndexChange}
             onExitTutorial={handleExitTutorial}
             onCompleteTutorial={handleCompleteTutorial}
+            onWorkspaceTourSeen={handleWorkspaceTourSeen}
+            onWarmupCompleted={handleWarmupCompleted}
           />
         </div>
       )}
@@ -216,10 +251,10 @@ export default function RootApp() {
           >
             <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.textBright }}>New here?</div>
             <div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
-              Want a quick interactive tutorial before jumping into the full challenge library?
+              Want a guided walkthrough before jumping into the full challenge library?
             </div>
             <div style={{ fontSize: 12, color: COLORS.textMuted, lineHeight: 1.45 }}>
-              The tutorial starts with a simplified editor and unlocks concepts one at a time.
+              You will get a component tour first, then a short first-touch warm-up before concept steps begin.
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
               <button onClick={handleSkipTutorial} style={btnStyle}>
