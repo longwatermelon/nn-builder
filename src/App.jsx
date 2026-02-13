@@ -57,7 +57,15 @@ const menuStyle = {
   boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
 };
 
-export default function App() {
+export default function App({ guideRefs = {} }) {
+  const {
+    topBarRef = null,
+    challengeLibraryRef = null,
+    networkGraphRef = null,
+    neuronInspectorRef = null,
+    resultsPanelRef = null,
+  } = guideRefs;
+
   const [layers, setLayers] = useState(createInitialNetwork);
   const [inputValues, setInputValues] = useState(DEFAULT_INPUT_VALUES);
   const [parameterDrafts, setParameterDrafts] = useState(() => {
@@ -788,6 +796,7 @@ export default function App() {
       }}
     >
       <div
+        ref={topBarRef}
         style={{
           padding: "10px 20px",
           display: "flex",
@@ -945,6 +954,7 @@ export default function App() {
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <div
+          ref={challengeLibraryRef}
           style={{
             width: 300,
             flexShrink: 0,
@@ -982,27 +992,31 @@ export default function App() {
             removeLayer={removeLayer}
             addHiddenLayer={addHiddenLayer}
             setNeuronName={setNeuronName}
+            graphPaneContainerRef={networkGraphRef}
+            inspectorPaneContainerRef={neuronInspectorRef}
           />
 
-          <ResultsPanel
-            isChallengeSelected={isChallengeSelected}
-            activeChallenge={activeChallenge}
-            isRevealingSolution={isRevealingSolution}
-            isSolutionRevealed={isSolutionRevealed}
-            challengeScore={challengeScore}
-            challengeScoreDisplay={challengeScoreDisplay}
-            matchThreshold={MATCH_SCORE_THRESHOLD}
-            scoreLabel={scoreLabel}
-            scoreColor={scoreColor}
-            scoreGlow={scoreGlow}
-            canRestoreAttempt={canRestoreAttempt}
-            networkGrid={networkGrid}
-            heatmapScale={heatmapScale}
-            inputValues={inputValues}
-            handleShowSolution={handleShowSolution}
-            handleRestoreAttempt={handleRestoreAttempt}
-            handleTryAnother={handleTryAnother}
-          />
+          <div ref={resultsPanelRef} style={{ width: "100%" }}>
+            <ResultsPanel
+              isChallengeSelected={isChallengeSelected}
+              activeChallenge={activeChallenge}
+              isRevealingSolution={isRevealingSolution}
+              isSolutionRevealed={isSolutionRevealed}
+              challengeScore={challengeScore}
+              challengeScoreDisplay={challengeScoreDisplay}
+              matchThreshold={MATCH_SCORE_THRESHOLD}
+              scoreLabel={scoreLabel}
+              scoreColor={scoreColor}
+              scoreGlow={scoreGlow}
+              canRestoreAttempt={canRestoreAttempt}
+              networkGrid={networkGrid}
+              heatmapScale={heatmapScale}
+              inputValues={inputValues}
+              handleShowSolution={handleShowSolution}
+              handleRestoreAttempt={handleRestoreAttempt}
+              handleTryAnother={handleTryAnother}
+            />
+          </div>
         </div>
       </div>
 
