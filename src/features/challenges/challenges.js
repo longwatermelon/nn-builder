@@ -237,70 +237,6 @@ function createScalarMulProductSolution() {
   });
 }
 
-function createPhaseWarpSolution() {
-  const relayEps = 0.03;
-  const relayScale = 1 / relayEps;
-
-  return [
-    { type: "input", activation: "linear", neuronCount: 2 },
-    {
-      type: "hidden",
-      activation: "linear",
-      neurons: [
-        { bias: 0, weights: [1, 0], name: "x" },
-        { bias: 0, weights: [2, 0], name: "2x" },
-        { bias: 0, weights: [1, 0], name: "x (cos path)" },
-      ],
-    },
-    {
-      type: "hidden",
-      activation: "cos",
-      neurons: [
-        { bias: -Math.PI / 2, weights: [relayEps, 0, 0], name: "relay(x)" },
-        { bias: -Math.PI / 2, weights: [0, relayEps, 0], name: "relay(2x)" },
-        { bias: 0, weights: [0, 0, 1], name: "cos(x)" },
-      ],
-    },
-    {
-      type: "hidden",
-      activation: "linear",
-      neurons: [
-        { bias: 0, weights: [relayScale, 0, 0], name: "x~" },
-        { bias: 0, weights: [0, relayScale, 0.5], name: "2x + 0.5cos(x)" },
-      ],
-    },
-    {
-      type: "hidden",
-      activation: "sin",
-      neurons: [
-        { bias: 0, weights: [0, 1], name: "sin(2x + 0.5cos(x))" },
-        { bias: 0, weights: [relayEps, 0], name: "relay(x)" },
-      ],
-    },
-    {
-      type: "hidden",
-      activation: "linear",
-      neurons: [
-        { bias: 0, weights: [0, relayScale], name: "x~~" },
-        { bias: 0, weights: [0.8, relayScale], name: "x + 0.8sin(...)" },
-      ],
-    },
-    {
-      type: "hidden",
-      activation: "sin",
-      neurons: [
-        { bias: 0, weights: [0, 1], name: "sin(x + 0.8sin(...))" },
-        { bias: 0, weights: [relayEps, 0], name: "relay(x)" },
-      ],
-    },
-    {
-      type: "output",
-      activation: "linear",
-      neurons: [{ bias: 0, weights: [1, -0.15 * relayScale] }],
-    },
-  ];
-}
-
 function createNestedTrigStackSolution() {
   const relayEps = 0.02;
   const argRelayScale = 0.07;
@@ -391,14 +327,6 @@ export const CHALLENGE_DEFS = [
     solutionFactory: () => createLinearSolution([1, 1], 0, "linear"),
   },
   {
-    id: "relu_ramp",
-    name: "ReLU Ramp",
-    formula: "f(x_1, x_2) = \\max(0, x_1)",
-    difficulty: "tutorial",
-    targetFn: (x1) => Math.max(0, x1),
-    solutionFactory: () => createLinearSolution([1, 0], 0, "relu"),
-  },
-  {
     id: "tanh_curve",
     name: "Tanh Curve",
     formula: "f(x_1, x_2) = \\tanh(x_1)",
@@ -478,27 +406,6 @@ export const CHALLENGE_DEFS = [
       }),
   },
   {
-    id: "kinked_valley",
-    name: "Kinked Valley",
-    formula: "f(x_1, x_2) = \\left|x_1 - 1\\right| + 0.7\\left|x_2 + 1.5\\right| - 0.8\\max(0, x_1 + x_2 - 1)",
-    difficulty: "hard",
-    targetFn: (x1, x2) => Math.abs(x1 - 1) + 0.7 * Math.abs(x2 + 1.5) - 0.8 * Math.max(0, x1 + x2 - 1),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: -1, weights: [1, 0] },
-          { bias: 1, weights: [-1, 0] },
-          { bias: 1.5, weights: [0, 1] },
-          { bias: -1.5, weights: [0, -1] },
-          { bias: -1, weights: [1, 1] },
-        ],
-        outputWeights: [1, 1, 0.7, 0.7, -0.8],
-        outputBias: 0,
-        outputActivation: "linear",
-      }),
-  },
-  {
     id: "offcenter_diamond_cap",
     name: "Offcenter Diamond Cap",
     formula: "f(x_1, x_2) = \\max(0, 2.2 - \\left|x_1 - 1.2\\right| - 0.6\\left|x_2 + 0.8\\right|)",
@@ -540,16 +447,6 @@ export const CHALLENGE_DEFS = [
         outputBias: -1.2,
         outputActivation: "linear",
       }),
-  },
-  {
-    id: "phase_warp",
-    name: "Phase Warp",
-    formula:
-      "f(x_1, x_2) = \\sin\\left(x_1 + 0.8\\sin\\left(2x_1 + 0.5\\cos\\left(x_1\\right)\\right)\\right) - 0.15x_1",
-    difficulty: "hard",
-    hint: "Use tiny-angle trig relays to carry x through nested sine and cosine layers.",
-    targetFn: (x1) => Math.sin(x1 + 0.8 * Math.sin(2 * x1 + 0.5 * Math.cos(x1))) - 0.15 * x1,
-    solutionFactory: () => createPhaseWarpSolution(),
   },
   {
     id: "input_product",
