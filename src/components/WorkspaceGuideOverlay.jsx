@@ -52,13 +52,11 @@ export default function WorkspaceGuideOverlay({
     const viewportLeft = VIEWPORT_EDGE_PADDING;
     const viewportBottom = viewportHeight - VIEWPORT_EDGE_PADDING;
     const viewportRight = viewportWidth - VIEWPORT_EDGE_PADDING;
-    const isOutsideViewport =
-      targetRect.top < viewportTop
-      || targetRect.bottom > viewportBottom
-      || targetRect.left < viewportLeft
-      || targetRect.right > viewportRight;
+    const isOutsideHorizontalViewport = targetRect.right <= viewportLeft || targetRect.left >= viewportRight;
+    const isOutsideVerticalViewport = targetRect.bottom <= viewportTop || targetRect.top >= viewportBottom;
+    const isFullyOutsideViewport = isOutsideHorizontalViewport || isOutsideVerticalViewport;
 
-    if (isOutsideViewport && lastAutoScrollStepRef.current !== stepIndex) {
+    if (isFullyOutsideViewport && lastAutoScrollStepRef.current !== stepIndex) {
       lastAutoScrollStepRef.current = stepIndex;
       targetElement.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
     }
