@@ -369,25 +369,6 @@ export const CHALLENGE_DEFS = [
       }),
   },
   {
-    id: "max_two_inputs",
-    name: "Max Of Two",
-    formula: "f(x_1, x_2) = \\max(x_1, x_2)",
-    difficulty: "medium",
-    targetFn: (x1, x2) => Math.max(x1, x2),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 0, weights: [1, -1] },
-          { bias: 0, weights: [0, 1] },
-          { bias: 0, weights: [0, -1] },
-        ],
-        outputWeights: [1, 1, -1],
-        outputBias: 0,
-        outputActivation: "linear",
-      }),
-  },
-  {
     id: "absolute_difference",
     name: "Absolute Difference",
     formula: "f(x_1, x_2) = \\left|x_1 - x_2\\right|",
@@ -401,6 +382,48 @@ export const CHALLENGE_DEFS = [
           { bias: 0, weights: [-1, 1] },
         ],
         outputWeights: [1, 1],
+        outputBias: 0,
+        outputActivation: "linear",
+      }),
+  },
+  {
+    id: "three_axis_fold",
+    name: "Three Axis Fold",
+    formula:
+      "f(x_1, x_2) = 0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
+    difficulty: "medium",
+    hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
+    targetFn: (x1, x2) =>
+      0.2 * x1 + Math.max(0, x1 + x2 - 1) - 0.9 * Math.max(0, x1 - 1.5 * x2 - 0.5) + 0.7 * Math.max(0, -x1 + 0.4 * x2 + 1.5),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 6, weights: [1, 0] },
+          { bias: -1, weights: [1, 1] },
+          { bias: -0.5, weights: [1, -1.5] },
+          { bias: 1.5, weights: [-1, 0.4] },
+        ],
+        outputWeights: [0.2, 1, -0.9, 0.7],
+        outputBias: -1.2,
+        outputActivation: "linear",
+      }),
+  },
+  {
+    id: "max_two_inputs",
+    name: "Max Of Two",
+    formula: "f(x_1, x_2) = \\max(x_1, x_2)",
+    difficulty: "hard",
+    targetFn: (x1, x2) => Math.max(x1, x2),
+    solutionFactory: () =>
+      createSingleHiddenSolution({
+        hiddenActivation: "relu",
+        hiddenNeurons: [
+          { bias: 0, weights: [1, -1] },
+          { bias: 0, weights: [0, 1] },
+          { bias: 0, weights: [0, -1] },
+        ],
+        outputWeights: [1, 1, -1],
         outputBias: 0,
         outputActivation: "linear",
       }),
@@ -423,29 +446,6 @@ export const CHALLENGE_DEFS = [
         outputWeights: [-1, -1, -0.6, -0.6],
         outputBias: 2.2,
         outputActivation: "relu",
-      }),
-  },
-  {
-    id: "three_axis_fold",
-    name: "Three Axis Fold",
-    formula:
-      "f(x_1, x_2) = 0.2x_1 + \\max(0, x_1 + x_2 - 1) - 0.9\\max(0, x_1 - 1.5x_2 - 0.5) + 0.7\\max(0, -x_1 + 0.4x_2 + 1.5)",
-    difficulty: "hard",
-    hint: "3 hinges: one x₁ + x₂ diagonal and two opposing diagonals.",
-    targetFn: (x1, x2) =>
-      0.2 * x1 + Math.max(0, x1 + x2 - 1) - 0.9 * Math.max(0, x1 - 1.5 * x2 - 0.5) + 0.7 * Math.max(0, -x1 + 0.4 * x2 + 1.5),
-    solutionFactory: () =>
-      createSingleHiddenSolution({
-        hiddenActivation: "relu",
-        hiddenNeurons: [
-          { bias: 6, weights: [1, 0] },
-          { bias: -1, weights: [1, 1] },
-          { bias: -0.5, weights: [1, -1.5] },
-          { bias: 1.5, weights: [-1, 0.4] },
-        ],
-        outputWeights: [0.2, 1, -0.9, 0.7],
-        outputBias: -1.2,
-        outputActivation: "linear",
       }),
   },
   {
